@@ -251,7 +251,284 @@ clusterrole.rbac.authorization.k8s.io/system:openshift:scc:anyuid added: "gitlab
 deployment.apps/gitlab serviceaccount updated
 ```
 
+**Otorgue la SCC anyuid a la cuenta de servicio wordpress-sa**
 
+ ```
+[student@workstation ~]$ oc adm policy add-scc-to-user anyuid -z wordpress-sa
+clusterrole.rbac.authorization.k8s.io/system:openshift:scc:anyuid added: "wordpress-sa"
+```
+
+### Servicios 
+
+En la siguiente definición de YAML se muestra cómo se crea un servicio. Esto define el servicio application-frontend, que crea una IP virtual que expone el puerto TCP 443. La aplicación front-end escucha en el puerto no privilegiado 8843.
+
+```
+kind: Service
+apiVersion: v1
+metadata:
+  name: application-frontend 1
+  labels:
+    app: frontend-svc 2
+spec:
+  ports: 3
+    - name: HTTP 4
+      protocol: TCP
+      port: 443 5
+      targetPort: 8443 6
+  selector: 7
+    app: shopping-cart
+    name: frontend
+  type: ClusterIP 8
+
+```
+
+1
+
+El nombre del servicio. Este identificador le permite administrar el servicio después de su creación.
+
+2
+
+Una etiqueta que puede usar como selector. Esto le permite agrupar lógicamente sus servicios.
+
+3
+
+Una serie de objetos que describe los puertos de red que se exponen.
+
+4
+
+Cada entrada define el nombre para la asignación de puertos. Este valor es genérico y se usa únicamente para la identificación.
+
+5
+
+Este es el puerto que el servicio expone. Use este puerto para conectarse con la aplicación que el servicio expone.
+
+6
+
+Este es el puerto en el que escucha la aplicación. El servicio crea una regla de reenvío desde el puerto del servicio hasta el puerto de destino del servicio.
+
+7
+
+El selector define los pods que se encuentran en el conjunto (pool) del servicio. Los servicios usan este selector para determinar dónde enrutar el tráfico. En este ejemplo, el servicio apunta a todos los pods con las etiquetas app: shopping-cart y name: frontend.
+
+8
+
+Esta es la forma en que se expone el servicio. ClusterIP expone el servicio mediante el uso de una dirección IP interna al clúster y es el valor predeterminado. Otros tipos de servicio se describirán en otra parte del curso.
+
+### SDN
+
+**Creación de rutas**
+
+La manera más fácil y preferida de crear una ruta (segura o insegura) es usar el comando oc expose service service, donde service corresponde a un servicio. Use la opción --hostname para proporcionar un nombre de host personalizado para la ruta.
+
+```
+[user@host ~]$ oc expose service api-frontend \
+>    --hostname api.apps.acme.com
+```
+
+--En la siguiente lista, se muestra una definición mínima para una ruta:
+
+```
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: a-simple-route 1
+  labels: 2
+    app: API
+    name: api-frontend
+spec:
+  host: api.apps.acme.com 3
+  to:
+    kind: Service
+    name: api-frontend 4
+  port: 5
+    targetPort: 8443
+```
+
+1
+
+El nombre de la ruta. El nombre debe ser único.
+
+2
+
+Un conjunto de etiquetas que puede usar como selectores.
+
+3
+
+El nombre de host de la ruta. Este nombre de host debe ser un subdominio de su dominio comodín, dado que OpenShift enruta el dominio comodín a los enrutadores.
+
+4
+
+El servicio al que se redirigirá el tráfico. Si bien usa un nombre de servicio, la ruta solo usa esta información para determinar la lista de pods que reciben el tráfico.
+
+5
+
+El puerto de la aplicación. Dado que las rutas omiten los servicios, esto debe coincidir con el puerto de la aplicación y no con el puerto del servicio.
+
+-----------------------------------------------------------------------------------
+
+Antes de crear una ruta segura, debe generar un certificado de TLS. El siguiente comando muestra cómo crear una ruta perimetral (edge) segura con un certificado TLS:
+
+ ```
+[user@host ~]$ oc create route edge \
+>    --service api-frontend --hostname api.apps.acme.com \
+>    *--key api.key --cert api.crt  *1 2
+```
+
+1
+
+La opción --key requiere la clave privada del certificado.
+
+2
+
+La opción --cert requiere el certificado que ha sido firmado con esa clave.
+
+**Genere la clave privada para el certificado firmado por la CA**
+
+```
+[student@workstation certs]$ openssl genrsa -out training.key 4096
+Generating RSA private key, 4096 bit long modulus (2 primes)
+...output omitted...
+e is 65537 (0x010001)
+```
+
+--------------------------------------------------------------------------------
+
+Para administrar la comunicación de red entre dos espacios de nombres, asigne una etiqueta al espacio de nombres que necesita acceso a otro espacio de nombres. El siguiente comando asigna la etiqueta name=network-1 al espacio de nombres network
+
+ ```
+[user@host ~]$ oc label namespace network-1 name=network-1
+```
+
+**Para ver las políticas de red en un espacio de nombres**
+
+```
+[student@workstation network-policy]$ oc get networkpolicies -n network-policy
+NAME             POD-SELECTOR       AGE
+allow-specific   deployment=hello   11s
+deny-all         <none>             5m6s
+```
+
+ **Para asignar al espacio de nombres network-test la etiqueta name=network-test**
+
+```
+ [student@workstation network-policy]$ oc label namespace network-test \
+>    name=network-test
+namespace/network-test labeled
+```
+
+### Etiquetado de nodos
+
+Use el comando oc label como administrador de clústeres para agregar, actualizar o quitar inmediatamente una etiqueta de nodo. Por ejemplo, use el siguiente comando para etiquetar un nodo con env=dev:
+
+```
+[user@host ~]$ ​oc label node master01 env=dev
+```
+
+Use la opción --overwrite para cambiar una etiqueta existente:
+
+```
+[user@host ~]$ ​oc label node master01 env=prod --overwrite
+```
+
+Quite una etiqueta especificando el nombre de la etiqueta seguido de un guión, como env-:
+
+```
+[user@host ~]$ ​oc label node master01 env-
+```
+
+### Límites de recursos
+
+Se usan para evitar que un pod agote todos los recursos de cómputo de un nodo. El nodo que ejecuta un pod configura la característica cgroups (grupos de control) de kernel de Linux para aplicar los límites de recursos del pod.
+
+Las solicitudes de recursos y los límites de recursos se deben definir para cada contenedor en un recurso de implementación o de configuración de implementación. Si no se han definido las solicitudes ni los límites, encontrará una línea resources: {} para cada contenedor.
+
+Modifique la línea resources: {} para especificar las solicitudes o los límites que desee. Por ejemplo:
+
+```
+...output omitted...
+    spec:
+      containers:
+      - image: quay.io/redhattraining/hello-world-nginx:v1.0
+        name: hello-world-nginx
+        resources:
+          requests:
+            cpu: "10m"
+            memory: 20Mi
+          limits:
+            cpu: "80m"
+            memory: 100Mi
+status: {}
+```
+
+El siguiente comando establece las mismas solicitudes y límites que el ejemplo anterior:
+
+```
+[user@host ~]$ oc set resources deployment hello-world-nginx \
+>    --requests cpu=10m,memory=20Mi --limits cpu=80m,memory=100Mi
+```
+
+### Actualizar cluster
+
+En los siguientes pasos, se describe el procedimiento para actualizar un clúster como administrador de clústeres mediante la interfaz de línea de comandos:
+
+Asegúrese de actualizar todos los operadores instalados a través del gestor del ciclo de vida del operador (OLM) a la versión más reciente antes de actualizar el clúster de OpenShift.
+
+Recupere la versión del clúster, revise la información del canal de actualización actual y confirme el canal. Si está ejecutando el clúster en producción, asegúrese de que el canal indique stable (estable).
+
+```
+[user@host ~]$ oc get clusterversion
+NAME      VERSION   AVAILABLE   PROGRESSING   SINCE   STATUS
+version   4.10.3    True        False         43d     Cluster version is 4.10.3
+```
+
+```
+[user@host ~]$ oc get clusterversion -o jsonpath='{.items[0].spec.channel}{"\n"}'
+stable-4.10
+```
+
+Vea las actualizaciones disponibles y observe el número de versión de la actualización que desea aplicar.
+
+```
+[user@host ~]$ oc adm upgrade
+Cluster version is 4.10.3
+
+Updates:
+
+VERSION IMAGE
+4.10.4   quay.io/openshift-release-dev/ocp-release@sha256:...
+...output omitted...
+```
+
+Aplique la última actualización de su clúster o actualice a una versión específica:
+
+Ejecute el siguiente comando para instalar la última actualización disponible para su clúster.
+
+```
+[user@host ~]$ oc adm upgrade --to-latest=true
+```
+
+Ejecute el siguiente comando para instalar una versión específica. VERSION corresponde a una de las versiones disponibles que devuelve el comando oc adm upgrade.
+
+```
+[user@host ~]$ ​oc adm upgrade --to=VERSION
+```
+
+El comando anterior inicializa el proceso de actualización. Ejecute el siguiente comando para revisar el estado del operador de versión de clúster (CVO) y los operadores instalados del clúster.
+
+```
+[user@host ~]$ oc get clusterversion
+NAME     VERSION  AVAILABLE  PROGRESSING  SINCE  STATUS
+version  4.10.3   True       True         30m    Working towards 4.10.4 ...
+```
+
+```
+[user@host ~]$ oc get clusteroperators
+NAME                  VERSION   AVAILABLE   PROGRESSING   DEGRADED
+authentication        4.10.3    True        False         False
+cloud-credential      4.10.4    False       True          False
+openshift-apiserver   4.10.4    True        False         True
+...output omitted...
+```
 
 
 
