@@ -530,6 +530,16 @@ openshift-apiserver   4.10.4    True        False         True
 ...output omitted...
 ```
 
+**Identificar la URL para la consola web**
+
+```
+[student@workstation ~]$ oc whoami --show-console
+https://console-openshift-console.apps.ocp4.example.com
+
+```
+
+
+
 
 
 
