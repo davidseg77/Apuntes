@@ -875,5 +875,594 @@ PASS: Stddev is 0.032695s
 FAIL
 ```
 
+### Configuración de hosts y servicios de red para la instalación de OpenShift sin un proveedor de infraestructura
+
+El archivo de configuración predeterminado para el servidor httpd es /etc/httpd/conf/httpd.conf. Dado que lo usará como servidor de archivos, debe encontrar el directorio donde colocará los archivos. Para encontrar este directorio, ejecute el siguiente comando.
+
+```
+[root@utility ~]# grep DocumentRoot /etc/httpd/conf/httpd.conf
+# DocumentRoot: The directory out of which you will serve your
+DocumentRoot "/var/www/html"
+...output omitted...
+```
+
+Cree la carpeta /var/www/html/openshift4/images.
+
+```
+[root@utility ~]# mkdir -p /var/www/html/openshift4/images
+```
+
+Cree la carpeta /var/www/html/openshift4/4.6.4/ignitions.
+
+```
+[root@utility ~]# mkdir -p /var/www/html/openshift4/4.6.4/ignitions
+```
+
+Restaure el contexto de seguridad de SELinux de la carpeta /var/www/html/openshift4/images.
+
+```
+[root@utility ~]# restorecon -Rv /var/www/html/openshift4
+```
+
+Revise la estructura de la carpeta /var/www/html:
+
+```
+[root@utility ~]# tree /var/www/html/
+ /var/www/html/
+ └── openshift4
+    ├── 4.6.4
+    │   └── ignitions
+    └── images
+```
+
+El servidor httpd está preparado para colocar los archivos de encendido (ignition) en /var/www/html/openshift4/4.6.4/ignitions/ y las imágenes RHCOS en /var/www/html/openshift4/images/.
+
+Descargue las imágenes RHCOS en la carpeta /var/www/html/openshift4/images/:
+
+```
+[root@utility ~]# ocp_maj=4.6;rhcos_ver=4.6.1
+[root@utility ~]# mirror=https://mirror.openshift.com/pub/openshift-v4
+[root@utility ~]# baseurl=${mirror}/dependencies/rhcos/${ocp_maj}/${rhcos_ver}
+[root@utility ~]# cd /var/www/html/openshift4/images/
+[root@utility images]# wget \
+> ${baseurl}/rhcos-${rhcos_ver}-x86_64-live-rootfs.x86_64.img
+...output omitted...
+2020-11-23 10:14:02 (57,0 MB/s) - “rhcos-4.6.1-x86_64-live-rootfs.x86_64.img” saved [819969024/819969024]
+[root@utility images]# wget \
+> ${baseurl}/rhcos-${rhcos_ver}-x86_64-live-kernel-x86_64
+...output omitted...
+
+2020-11-23 10:15:50 (6,26 MB/s) - “rhcos-4.6.1-x86_64-live-kernel-x86_64” saved [8924528/8924528]
+[root@utility images]# wget \
+> ${baseurl}/rhcos-${rhcos_ver}-x86_64-live-initramfs.x86_64.img
+...output omitted...
+
+2020-11-23 10:16:33 (29,2 MB/s) - “rhcos-4.6.1-x86_64-live-initramfs.x86_64.img” saved [80239428/80239428]
+```
+
+Regrese a la carpeta de inicio root:
+
+```
+[root@utility images]# cd ~
+[root@utility ~]#
+```
+
+Verifique y configure (si es necesario) el servicio del balanceador de carga HAProxy provisto por el daemon haproxy. El archivo de configuración es /etc/haproxy/haproxy.cfg, como se muestra en la salida del estado de la unidad systemd:
+
+```
+[root@utility ~]$ systemctl status haproxy
+```
+
+Edite el archivo /etc/haproxy/haproxy.cfg para agregar los servidores de back end para APIServer, el servidor Machine Config y las aplicaciones (seguras y no seguras).
+
+```
+[root@utility ~]# vi /etc/haproxy/haproxy.cfg
+
+...output omitted...
+#---------------------------------------------------------------------
+# round robin balancing for RHOCP Kubernetes API Server
+#---------------------------------------------------------------------
+ frontend k8s_api
+   bind *:6443
+   mode tcp
+   default_backend k8s_api_backend
+ backend k8s_api_backend
+   balance roundrobin
+   mode tcp
+   server bootstrap 192.168.50.9:6443 check
+   server master01 192.168.50.10:6443 check
+   server master02 192.168.50.11:6443 check
+   server master03 192.168.50.12:6443 check
+
+# ---------------------------------------------------------------------
+# round robin balancing for RHOCP Machine Config Server
+# ---------------------------------------------------------------------
+ frontend machine_config
+   bind *:22623
+   mode tcp
+   default_backend machine_config_backend
+ backend machine_config_backend
+   balance roundrobin
+   mode tcp
+   server bootstrap 192.168.50.9:22623 check
+   server master01 192.168.50.10:22623 check
+   server master02 192.168.50.11:22623 check
+   server master03 192.168.50.12:22623 check
+
+# ---------------------------------------------------------------------
+# round robin balancing for RHOCP Ingress Insecure Port
+# ---------------------------------------------------------------------
+ frontend ingress_insecure
+   bind *:80
+   mode tcp
+   default_backend ingress_insecure_backend
+ backend ingress_insecure_backend
+   balance roundrobin
+   mode tcp
+   server worker01 192.168.50.13:80 check
+   server worker02 192.168.50.14:80 check
+
+# ---------------------------------------------------------------------
+# round robin balancing for RHOCP Ingress Secure Port
+# ---------------------------------------------------------------------
+ frontend ingress_secure
+   bind *:443
+   mode tcp
+   default_backend ingress_secure_backend
+ backend ingress_secure_backend
+   balance roundrobin
+   mode tcp
+   server worker01 192.168.50.13:443 check
+   server worker02 192.168.50.14:443 check
+
+# ---------------------------------------------------------------------
+# Exposing HAProxy Statistic Page
+# ---------------------------------------------------------------------
+ listen stats
+     bind :32700
+     stats enable
+     stats uri /
+     stats hide-version
+     stats auth admin:RedH@t322
+```
+Guarde los cambios en el archivo /etc/haproxy/haproxy.cfg.
+
+Verifique que el archivo haproxy.cfg no contenga errores. Recargue el servicio HAProxy para aplicar los cambios. Verifique el estado del servicio.
+
+```
+[root@utility ~]# haproxy -c -f /etc/haproxy/haproxy.cfg
+```
+```
+[root@utility ~]# systemctl reload haproxy
+[root@utility ~]$ systemctl status haproxy
+```
+
+Verifique y configure el servicio TFTP. Después de este paso, la estructura de la carpeta /var/lib/tftpboot/pxelinux.cfg/ debe verse de la siguiente forma:
+
+```
+[root@utility ~]# tree /var/lib/tftpboot/pxelinux.cfg/
+```
+
+Verifique y configure (si es necesario) el servicio TFTP provisto por el daemon tftp.
+
+```
+[root@utility ~]# systemctl status tftp
+```
+
+Con las direcciones MAC del archivo /etc/dhcp/dhcpd.conf al que se hace referencia en el paso anterior, cree seis archivos en /var/lib/tftpboot/pxelinux.cfg/ de la siguiente manera.
+
+Anteponga 01- a la dirección MAC en minúscula, separando cada par de dígitos hexadecimales con un guion.
+
+master01 - /var/lib/tftpboot/pxelinux.cfg/01-52-54-00-00-32-0a
+
+master02 - /var/lib/tftpboot/pxelinux.cfg/01-52-54-00-00-32-0b
+
+master03 - /var/lib/tftpboot/pxelinux.cfg/01-52-54-00-00-32-0c
+
+Contenido de los tres archivos:
+
+```
+default menu.c32
+prompt 0
+timeout 0
+menu title **** OpenShift 4 MASTER PXE Boot Menu ****
+
+label Install RHCOS 4.6.1 Master Node
+ kernel http://192.168.50.254:8080/openshift4/images/rhcos-4.6.1-x86_64-live-kernel-x86_64
+ append ip=dhcp rd.neednet=1 coreos.inst.install_dev=vda console=tty0 console=ttyS0 coreos.inst=yes coreos.live.rootfs_url=http://192.168.50.254:8080/openshift4/images/rhcos-4.6.1-x86_64-live-rootfs.x86_64.img coreos.inst.ignition_url=http://192.168.50.254:8080/openshift4/4.6.4/ignitions/master.ign initrd=http://192.168.50.254:8080/openshift4/images/rhcos-4.6.1-x86_64-live-initramfs.x86_64.img
+
+ ```
+
+ bootstrap - /var/lib/tftpboot/pxelinux.cfg/01-52-54-00-00-32-09
+
+Contenido del archivo:
+
+```
+default menu.c32
+prompt 0
+timeout 0
+menu title **** OpenShift 4 BOOTSTRAP PXE Boot Menu ****
+
+label Install RHCOS 4.6.1 Bootstrap Node
+ kernel http://192.168.50.254:8080/openshift4/images/rhcos-4.6.1-x86_64-live-kernel-x86_64
+ append ip=dhcp rd.neednet=1 coreos.inst.install_dev=vda console=tty0 console=ttyS0 coreos.inst=yes coreos.live.rootfs_url=http://192.168.50.254:8080/openshift4/images/rhcos-4.6.1-x86_64-live-rootfs.x86_64.img coreos.inst.ignition_url=http://192.168.50.254:8080/openshift4/4.6.4/ignitions/bootstrap.ign initrd=http://192.168.50.254:8080/openshift4/images/rhcos-4.6.1-x86_64-live-initramfs.x86_64.img
+
+ ```
+
+worker01 - /var/lib/tftpboot/pxelinux.cfg/01-52-54-00-00-32-0d
+
+worker02 - /var/lib/tftpboot/pxelinux.cfg/01-52-54-00-00-32-0e
+
+Contenido de los dos archivos:
+
+```
+default menu.c32
+prompt 0
+timeout 0
+menu title **** OpenShift 4 WORKER PXE Boot Menu ****
+
+label Install RHCOS 4.6.1 Worker Node
+ kernel http://192.168.50.254:8080/openshift4/images/rhcos-4.6.1-x86_64-live-kernel-x86_64
+ append ip=dhcp rd.neednet=1 coreos.inst.install_dev=vda console=tty0 console=ttyS0 coreos.inst=yes coreos.live.rootfs_url=http://192.168.50.254:8080/openshift4/images/rhcos-4.6.1-x86_64-live-rootfs.x86_64.img coreos.inst.ignition_url=http://192.168.50.254:8080/openshift4/4.6.4/ignitions/worker.ign initrd=http://192.168.50.254:8080/openshift4/images/rhcos-4.6.1-x86_64-live-initramfs.x86_64.img
+
+ ```
+
+ Con el usuario lab, cree los archivos de encendido (ignition) y colóquelos en el servidor de archivos.
+
+ Cree una carpeta denominada ocp4upi y cambie a esa carpeta:
+
+```
+[root@utility ~]# exit
+logout
+[lab@utility ~]$ mkdir ocp4upi && cd ocp4upi
+[lab@utility ocp4upi]$
+```
+
+Anteriormente en este curso, generó el archivo pull-secret-oneline.json con el registro local de su región y lo copió en el servidor utility.
+
+```
+[lab@utility ocp4upi]$ cat ~/pull-secret-oneline.json
+```
+Tras esto, solo quedará crear el install-config.yaml y crear los manifiestos.
+
+
+### Realización de las operaciones del Día 1 y del Día 2
+
+Con el usuario student, copie el archivo kubeconfig de /home/lab/ocp4upi/auth/kubeconfig a la máquina de la estación de trabajo.
+
+```
+[student@workstation ~]$ ssh lab@utility
+```
+
+```
+[lab@utility ~]$ scp /home/lab/ocp4upi/auth/kubeconfig student@workstation:
+```
+
+Configure el registro de imágenes con almacenamiento persistente.
+
+Use el archivo kubeconfig para realizar la autenticación en OpenShift.
+
+```
+[lab@utility ~]$ export KUBECONFIG=~/ocp4upi/auth/kubeconfig
+```
+
+
+
+Investigue las exportaciones NFS en el servidor utility.
+
+```
+[lab@utility ~]$ cat /etc/exports
+/exports *(rw,sync,no_wdelay,no_root_squash,insecure,fsid=0)
+
+[lab@utility ~]$ lsblk
+NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
+vda    252:0    0   10G  0 disk
+├─vda1 252:1    0    1M  0 part
+├─vda2 252:2    0  100M  0 part /boot/efi
+└─vda3 252:3    0  9,9G  0 part /
+vdb    252:16   0   40G  0 disk
+└─vdb1 252:17   0   40G  0 part /exports
+
+[lab@utility ~]$ df -h
+Filesystem       Size   Used Avail Use% Mounted on
+...output omitted...
+/dev/vdb1         40G   318M   40G   1% /exports
+/dev/vda2        100M   6,8M   94M   7% /boot/efi
+tmpfs            183M      0  183M   0% /run/user/1000
+```
+
+La exportación NFS /exports tiene aproximadamente 40 GB de espacio en disco disponible.
+
+Cree el archivo de volumen persistente (PV) denominado pv.yaml.
+
+```
+[lab@utility ~]$ vi pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: registry-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+  - ReadWriteMany
+  nfs:
+    path: /exports/registry
+    server: 192.168.50.254
+  persistentVolumeReclaimPolicy: Recycle
+  ```
+Cree la carpeta /exports/registry con los permisos adecuados y el volumen persistente (PV) desde el archivo pv.yaml:
+
+```
+[lab@utility ~]$ mkdir /exports/registry
+[lab@utility ~]$ sudo chmod 777 /exports/registry/
+[lab@utility ~]$ oc create -f pv.yaml
+persistentvolume/registry-pv created
+```
+
+Cree un archivo llamado pvc.yaml con el siguiente contenido.
+
+```
+[lab@utility ~]$ vi pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: registry-claim
+  namespace: openshift-image-registry
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+```
+
+Cree la reclamación de volumen persistente (PVC) a partir del archivo pvc.yaml:
+
+```
+[lab@utility ~]$ oc create -f pvc.yaml
+```
+En la sección spec, establezca el operador de registro de imágenes en estado "Managed" (Administrado). Edite la configuración del registro de imágenes de clúster para agregar la PVC. Además, configure el registro de imágenes para que tenga dos réplicas de pod.
+
+```
+[lab@utility ~]$ oc edit configs.imageregistry/cluster
+...output omitted...
+spec:
+...output omitted...
+  managementState: Managed
+...output omitted...
+  proxy: {}
+  replicas: 2
+  requests:
+...output omitted...
+  rolloutStrategy: RollingUpdate
+  storage:
+    pvc:
+      claim: registry-claim
+...output omitted...
+```
+Verifique el estado del operador del registro de imágenes, PV y PVC.
+
+```
+[lab@utility ~]$ oc get pv -A
+NAME          CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                                     STORAGECLASS   REASON   AGE
+registry-pv   5Gi        RWX            Recycle          Bound    openshift-image-registry/registry-claim                           111m
+
+[lab@utility ~]$ oc get pvc -A
+NAMESPACE                  NAME             STATUS   VOLUME        CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+openshift-image-registry   registry-claim   Bound    registry-pv   5Gi        RWX                           105m
+
+[lab@utility ~]$ oc get clusteroperator
+```
+
+Verifique la cantidad de pods de registro en el espacio de nombres openshift-image-registry.
+
+```
+[lab@utility ~]$ oc get pods -n openshift-image-registry -o wide
+```
+
+Configure un aprovisionador de almacenamiento dinámico.
+
+Clone el repositorio de GitHub kubernetes-sigs/nfs-subdir-external-provisioner:
+
+```
+[lab@utility ~]$ git clone \
+> https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/
+```
+
+Edite los archivos de la carpeta deploy con información del servidor NFS en utility. La salida debería verse de la siguiente manera:
+
+```
+[lab@utility ~]$ vi nfs-subdir-external-provisioner/deploy/class.yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-client
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: nfs-dynamic-provisioner
+reclaimPolicy: Retain
+...output omitted...
+```
+
+```
+[lab@utility ~]$ vi nfs-subdir-external-provisioner/deploy/rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nfs-client-provisioner
+  namespace: nfs-dynamic-namespace
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nfs-client-provisioner-runner
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "update", "patch"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: run-nfs-client-provisioner
+subjects:
+  - kind: ServiceAccount
+    name: nfs-client-provisioner
+    namespace: nfs-dynamic-namespace
+roleRef:
+  kind: ClusterRole
+  name: nfs-client-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: leader-locking-nfs-client-provisioner
+  namespace: nfs-dynamic-namespace
+rules:
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: leader-locking-nfs-client-provisioner
+  namespace: nfs-dynamic-namespace
+subjects:
+  - kind: ServiceAccount
+    name: nfs-client-provisioner
+    namespace: nfs-dynamic-namespace
+roleRef:
+  kind: Role
+  name: leader-locking-nfs-client-provisioner
+  apiGroup: rbac.authorization.k8s.io
+```
+
+```
+[lab@utility ~]$ vi nfs-subdir-external-provisioner/deploy/deployment.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-client-provisioner
+  labels:
+    app: nfs-client-provisioner
+  namespace: nfs-dynamic-namespace
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nfs-client-provisioner
+  template:
+    metadata:
+      labels:
+        app: nfs-client-provisioner
+    spec:
+      serviceAccountName: nfs-client-provisioner
+      containers:
+        - name: nfs-client-provisioner
+          image: registry.k8s.io/sig-storage/nfs-subdir-external-provisioner:v4.0.2
+          volumeMounts:
+            - name: nfs-client-root
+              mountPath: /persistentvolumes
+          env:
+            - name: PROVISIONER_NAME
+              value: nfs-dynamic-provisioner
+            - name: NFS_SERVER
+              value: 192.168.50.254
+            - name: NFS_PATH
+              value: /exports
+      volumes:
+        - name: nfs-client-root
+          nfs:
+            server: 192.168.50.254
+            path: /exports
+```
+
+Cree los objetos en el espacio de nombres nfs-dynamic-namespace.
+
+```
+[lab@utility ~]$ oc create namespace nfs-dynamic-namespace
+namespace/nfs-dynamic-namespace created
+[lab@utility ~]$ oc create -f nfs-subdir-external-provisioner/deploy/rbac.yaml
+```
+
+Cree el rol use-scc-hostmount-anyuid en el espacio de nombres nfs-dynamic-namespace. Agregue el rol use-scc-hostmount-anyuid a la cuenta de servicio nfs-client-provisioner.
+
+```
+[lab@utility ~]$ oc create role use-scc-hostmount-anyuid --verb=use \
+> --resource=scc --resource-name=hostmount-anyuid -n nfs-dynamic-namespace
+role.rbac.authorization.k8s.io/use-scc-hostmount-anyuid created
+```
+
+```
+[lab@utility ~]$ oc project nfs-dynamic-namespace
+Now using project "nfs-dynamic-namespace" on server "https://api.ocp4.example.com:6443".
+```
+
+```
+[lab@utility ~]$ oc adm policy add-role-to-user use-scc-hostmount-anyuid \
+> -z nfs-client-provisioner --role-namespace='nfs-dynamic-namespace'
+role.rbac.authorization.k8s.io/use-scc-hostmount-anyuid added: "nfs-client-provisioner"
+```
+
+Cree la implementación.
+
+```
+[lab@utility ~]$ oc create -f \
+> nfs-subdir-external-provisioner/deploy/deployment.yaml
+```
+
+Verifique todos los recursos creados en el espacio de nombres nfs-dynamic-namespace.
+
+```
+[lab@utility ~]$ oc get all
+```
+
+Cree la NFS StorageClass.
+
+```
+[lab@utility ~]$ oc create -f \
+> nfs-subdir-external-provisioner/deploy/class.yaml
+```
+
+```
+[lab@utility ~]$ oc get storageclass
+```
+
+Pruebe el aprovisionamiento de volúmenes dinámicos NFS.
+
+```
+[lab@utility ~]$ oc create -f \
+> nfs-subdir-external-provisioner/deploy/test-claim.yaml
+```
+
+```
+[lab@utility ~]$ oc get pvc
+[lab@utility ~]$ oc create -f \
+> nfs-subdir-external-provisioner/deploy/test-pod.yaml
+[lab@utility ~]$ oc get all
+```
+
+Si el aprovisionador dinámico NFS funciona correctamente, habrá un archivo SUCCESS en la carpeta de exportación NFS.
+
+```
+[lab@utility ~]$ tree /exports/
+```
+
 
 
