@@ -105,3 +105,50 @@ Desde un terminal activado en , recupere el token de cuenta de servicio del cont
 ...output omitted...
 ```
 
+### Adaptación de límites para migraciones grandes
+
+Si el número de objetos implicados en la migración es alto, es posible que los administradores deban aumentar los límites predeterminados. Esto se hace editando el objeto.migrationcontroller
+
+```
+[user@demo ~]$ oc edit migrationcontroller -n openshift-migration
+...output omitted...
+mig_controller_limits_cpu: "1" 1
+mig_controller_limits_memory: "10Gi" 2
+...output omitted...
+mig_controller_requests_cpu: "100m" 3
+mig_controller_requests_memory: "350Mi" 4
+...output omitted...
+mig_pv_limit: 100 5
+mig_pod_limit: 100 6
+mig_namespace_limit: 10 7
+...output omitted...
+```
+
+1
+
+Número de CPU disponibles para el recurso personalizado (CR)MigrationController
+
+2
+
+Cantidad de memoria disponible para el CRMigrationController
+
+3
+
+Número de unidades de CPU disponibles para el CRMigrationController
+
+4
+
+Número de solicitudes de memoria disponibles para el CRMigrationController
+
+5
+
+Número de PV que se pueden migrar por plan de migración
+
+6
+
+Número de pods que se pueden migrar por plan de migración
+
+7
+
+Número de espacios de nombres que se pueden migrar por plan de migración
+
