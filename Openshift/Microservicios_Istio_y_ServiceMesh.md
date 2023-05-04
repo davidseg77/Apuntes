@@ -226,3 +226,30 @@ Proporciona observabilidad a la malla de servicio a través de una interfaz de u
 
 Puede encontrar todos los operadores necesarios y el operador de Red Hat OpenShift Service Mesh en la página **OperatorHub**.
 
+**Implementación del plano de control de OpenShift Service Mesh**
+
+El plano de control gestiona la configuración y las políticas de la malla de servicio. La instalación de OpenShift Service Mesh Operator hace que el operador esté disponible en todos los espacios de nombres, por lo que puede instalar el plano de control en cualquier proyecto.
+
+Para implementar un plano de control en un proyecto con la interfaz de usuario web, primero vaya a la página Installed Operators (Operadores instalados), luego, a la página Istio Service Mesh Control Plane (Plano de control de malla de servicio de Istio) y, finalmente, revise y configure los parámetros de implementación.
+
+**Creación de una lista de miembros de la malla de servicio**
+
+El recurso personalizado ServiceMeshMemberRoll define los proyectos que pertenecen a un plano de control.
+
+Cualquier número de proyectos se puede agregar a ServiceMeshMemberRoll; sin embargo, un proyecto se puede agregar solo a un plano de control.
+
+Para crear o editar una lista de miembros de la malla de servicio, primero vaya al proyecto donde Red Hat OpenShift Service Mesh está instalado, luego, vaya a la página Istio Service Mesh Member Roll (Lista de miembros de la malla de servicio de Istio) y, finalmente, revise y configure los parámetros de instalación.
+
+### Visualización de rastros y tramos con la consola web de Jaeger
+
+La consola web de Jaeger está instalada de forma predeterminada en Red Hat OpenShift Service Mesh y está estrechamente integrada con la consola web de OpenShift.
+
+Para ver detalles sobre rastros (traces) y tramos (spans) en la consola de Jaeger, haga lo siguiente:
+
+En la consola web de OpenShift, vaya a Networking (Red) → Routes (Rutas) y busque la ruta jaeger, que es la URL que aparece en la columna Location (Ubicación).
+
+Use el mismo nombre de usuario y la misma contraseña que se usa para iniciar sesión en la consola web de OpenShift. Debería ver la página de inicio de la consola web de Jaeger.
+
+En el panel izquierdo de la consola de Jaeger, en el menú Servicie (Servicio), seleccione su aplicación y haga clic en Find Traces (Buscar rastros) en la parte inferior del panel. Se muestra una lista de los rastros (traces) recopilados para la aplicación.
+
+
