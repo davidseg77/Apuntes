@@ -1,0 +1,228 @@
+# Construcción de Microservicios con Istio Y Service Mesh
+
+### Instalación del operador de OpenShift ElasticSearch
+
+La instalación del operador de OpenShift Elasticsearch implica los siguientes pasos:
+
+Cree un archivo YAML de objeto de suscripción para suscribir el espacio de nombres openshift-operators al operador de OpenShift Elasticsearch, por ejemplo, elasticsearch.yaml.
+
+```
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: elasticsearch-operator
+  namespace: openshift-operators1
+spec:
+  channel: "4.6" 2
+  name: elasticsearch-operator 3
+  source: redhat-operators 4
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
+```
+
+1
+
+Espacio de nombres usado para instalar el operador.
+
+2
+
+Flujo de versiones del operador.
+
+3
+
+Nombre del operador a suscribir.
+
+4
+
+Fuente que proporciona el operador.
+
+Cree el objeto de suscripción aplicando el archivo YAML.
+
+```
+[user@host ~]$ oc apply -f elasticsearch.yaml
+subscription.operators.coreos.com/elasticsearch-operator created
+```
+
+Compruebe el estado de la instalación del operador.
+
+```
+[user@host ~]$ oc describe sub elasticsearch-operator \
+ -n openshift-operators
+Name:         elasticsearch-operator
+Namespace:    openshift-operators
+...output omitted...
+Message:               all available catalogsources are healthy
+...output omitted...
+```
+
+### Creación del plano de control de OpenShift Service Mesh
+
+Red Hat recomienda implementar el plano de control en un proyecto separado.
+
+A continuación se describe cómo implementar el plano de control usando la CLI.
+
+Inicie sesión en Red Hat OpenShift con el usuario developer.
+
+```
+[user@host ~]$ oc login -u USER  -p PASSWORD  RHT_OCP4_API
+```
+
+Cree un proyecto, por ejemplo, istio-system.
+
+```
+[user@host ~]$ ​oc new-project istio-system
+Now using project "istio-system" on server "https://api.ocp4.example.com:6443".
+...output omitted...
+```
+
+Cree un archivo YAML de objeto ServiceMeshControlPlane, por ejemplo, istio-basic-installation.yaml.
+
+```
+apiVersion: maistra.io/v2
+kind: ServiceMeshControlPlane
+metadata:
+  name: basic 1
+  namespace: istio-system 2
+spec:
+  gateways: 3
+    egress:
+      enabled: true
+      runtime:
+        deployment:
+          autoScaling:
+            enabled: false
+    ingress:
+      enabled: true
+      runtime:
+        deployment:
+          autoScaling:
+            enabled: false
+
+  tracing: 4
+    sampling: 10000
+    type: Jaeger
+
+  telemetry:
+    type: Istiod
+
+  policy:
+    type: Istiod
+
+  addons:
+    grafana: 5
+      enabled: true
+    jaeger: 6
+      install:
+        storage:
+          type: Memory
+    kiali: 7
+      enabled: true
+```
+
+1
+
+Nombre asignado al plano de control.
+
+2
+
+Espacio de nombres donde se implementa el plano de control.
+
+3
+
+Configuración de puertas de enlace de Istio. Desactiva el escalado automático en las puertas de enlace de entrada (ingress) y salida (egress).
+
+4
+
+Configuración de rastreo. Selecciona Jaeger y la frecuencia de muestreo.
+
+5
+
+Configuración de Grafana. Permite a Grafana analizar y monitorear la malla de servicio.
+
+6
+
+Configuración de Jaeger. Habilita el almacenamiento en la memoria. ElasticSearch debe usarse en un entorno de producción.
+
+7
+
+Configuración de Kiali. Permite a Kiali visualizar el tráfico en la malla de servicio.
+
+La configuración completa del plano de control está disponible en GitHub. Consulte código fuente.
+
+Implemente el plano de control.
+
+```
+[user@host ~]$ oc create -n istio-system \
+ -f istio-basic-installation.yaml
+servicemeshcontrolplane.maistra.io/basic created
+```
+
+Compruebe el estado de la instalación del plano de control.
+
+```
+[user@host ~]$ oc get smcp -n istio-system
+NAME    READY
+basic   True
+```
+
+Debe crear una nueva ServiceMeshMemberRoll (Lista de miembros de la malla de servicio) para cada nueva instalación del plano de control.
+
+Para crear una nueva ServiceMeshMemberRoll (Lista de miembros de la malla de servicio):
+
+Cree un archivo YAML de objeto ServiceMeshControlPlane, por ejemplo, service-mesh-member-roll.yaml.
+
+```
+apiVersion: maistra.io/v1
+kind: ServiceMeshMemberRoll
+metadata:
+  name: default
+  namespace: istio-system
+spec:
+  members:
+    - a-project
+```
+
+El plano de control gestiona proyectos listados como miembros.
+
+Implemente ServiceMeshMemberRoll.
+
+```
+[user@host ~]$ oc create -n istio-system \
+ -f service-mesh-member-roll.yaml
+servicemeshmemberroll.maistra.io/default created
+```
+
+**Adición o eliminación de un proyecto del plano de control**
+
+Solo los proyectos enumerados en ServiceMeshMemberRoll son administrados por la malla de servicio. Para agregar o eliminar un proyecto del plano de control:
+
+Inicie sesión en Red Hat OpenShift Container.
+
+Edite el recurso ServiceMeshMemberRoll.
+
+```
+[user@host ~]$ oc edit smmr -n istio-system
+```
+
+Modifique YAML para agregar o eliminar miembros del proyecto y guardar los cambios.
+
+
+### Instalación de Red Hat OpenShift Service Mesh
+
+OpenShift Service Mesh se instala mediante la consola web, o CLI, y un operador de Kubernetes. El proceso requiere primero la instalación de los operadores requeridos, luego la implementación del plano de control y, finalmente, la creación de una lista de miembros de la malla de servicio.
+
+**Instalación del operador de OpenShift Service Mesh**
+
+OpenShift Service Mesh se basa en los siguientes operadores:
+
+- Jaeger
+Proporciona funciones de rastreo para monitorear y solucionar problemas de la aplicación distribuida.
+
+- ElasticSearch
+Almacena los rastros (traces) y registros generados por Jaeger.
+
+- Kiali
+Proporciona observabilidad a la malla de servicio a través de una interfaz de usuario (IU) web.
+
+Puede encontrar todos los operadores necesarios y el operador de Red Hat OpenShift Service Mesh en la página **OperatorHub**.
+
