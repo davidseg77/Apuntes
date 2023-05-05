@@ -252,4 +252,33 @@ Use el mismo nombre de usuario y la misma contraseña que se usa para iniciar se
 
 En el panel izquierdo de la consola de Jaeger, en el menú Servicie (Servicio), seleccione su aplicación y haga clic en Find Traces (Buscar rastros) en la parte inferior del panel. Se muestra una lista de los rastros (traces) recopilados para la aplicación.
 
+### Inyección automática del sidecar de Envoy
+
+Para inyectar automáticamente el sidecar de Envoy en un servicio, debe especificar la notación sidecar.istio.io/inject con el valor establecido en "true" (verdadero) en el recurso Deployment (Implementación).
+
+Ejemplo de inyección automática del sidecar:
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: history
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: history
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      containers:
+        - name: history
+          image: quay.io/redhattraining/ossm-history:1.0
+          ports:
+            - containerPort: 8080
+```
+
+
+
 
