@@ -279,6 +279,160 @@ spec:
             - containerPort: 8080
 ```
 
+### Agregar el proyecto hello a la lista de miembros en el recurso ServiceMeshMemberRoll.
+
+ServiceMeshMemberRoll está disponible en el proyecto istio-system.
+
+Use el script add-project-to-smmr.sh para agregar el proyecto hello a la lista de miembros en el recurso ServiceMeshMemberRoll.
+
+```
+[student@workstation traffic-deploy]$ sh add-project-to-smmr.sh
+servicemeshmemberroll.maistra.io/default patched
+```
+
+### Cree una puerta de enlace de entrada (ingress) para permitir el tráfico de entrada a la malla.
+
+Examine el archivo gateway.yaml, en el que se describe el tráfico permitido para entrar en la malla.
+
+```
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: hello-gateway1
+spec:
+  selector:
+    istio: ingressgateway 2
+  servers:
+    - port: 3
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts: 4
+        - "*"
+```
+
+1
+
+Nombre asignado a la configuración de la puerta de enlace.
+
+2
+
+Indica a qué implementaciones de puerta de enlace del proxy se aplican las reglas. En este caso, es el proxy de Envoy de la puerta de enlace de entrada (ingress).
+
+3
+
+Puerto y protocolo donde la puerta de enlace está escuchando las conexiones entrantes.
+
+4
+
+Los hosts expuestos por esta puerta de enlace; el "*" significa que este campo no se usa para filtrar el tráfico entrante.
+
+Use el comando oc create para crear la configuración de la puerta de enlace de entrada (ingress).
+
+```
+[student@workstation traffic-deploy]$ oc create -f gateway.yaml
+gateway.networking.istio.io/hello-gateway created
+```
+
+### Cree un servicio virtual para redirigir el tráfico de entrada (ingress) a la aplicación Vert.x.
+
+Examine el archivo virtual-service.yaml, que enruta el tráfico de entrada (ingress) con la aplicación Vert.X.
+
+```
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: hello-vs 1
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - hello-gateway 2
+  http: 3
+  - route: 4
+    - destination:
+        host: hello 5
+        port: 6
+          name: http-8080
+          number: 8080
+```
+
+1
+
+Nombre asignado a la configuración del servicio virtual.
+
+2
+
+Lista de puertas de enlace que deben aplicar las rutas. Este servicio virtual se aplica al tráfico configurado por la puerta de enlace hello-gateway.
+
+3
+
+Lista de reglas de ruta para el tráfico HTTP.
+
+4
+
+Ruta predeterminada, ya que no se definen condiciones de coincidencia. Esta ruta redirige todo el tráfico al destino especificado.
+
+5
+
+Regla de destino que envía el tráfico al servicio hello.
+
+6
+
+Regla de destino que envía el tráfico al puerto http-8080 del servicio hello.
+
+Use el comando oc create para crear un servicio virtual.
+
+```
+[student@workstation traffic-deploy]$ oc create -f virtual-service.yaml
+virtualservice.networking.istio.io/hello-vs created
+```
+
+**Exporte la URL de la puerta de enlace de entrada (ingress) a una variable de entorno llamada GATEWAY_URL.**
+
+```
+[student@workstation traffic-deploy]$ GATEWAY_URL=$(sh get-ingress-gateway-url.sh)
+```
+
+**Ejecute el comando curl en combinación con la variable GATEWAY_URL para confirmar el acceso a la aplicación desde el terminal.**
+
+```
+[student@workstation traffic-deploy]$ curl ${GATEWAY_URL}
+Hello World!
+```
+**Visualice el tráfico de entrada (ingress) con Kiali**
+
+Examine el script get-kiali-url.sh, que usa el comando oc para recopilar la URL de Kiali.
+
+Exporte la URL de Kiali a una variable de entorno llamada KIALI_URL.
+
+```
+[student@workstation traffic-deploy]$ KIALI_URL=$(sh get-kiali-url.sh)
+```
+
+Abra la URL KIALI_URL en un navegador para acceder a Kiali.
+
+```
+[student@workstation traffic-deploy]$ firefox ${KIALI_URL} &
+```
+
+### Recupere la URL de la puerta de enlace de entrada (ingress) de Istio ejecutando el siguiente comando:
+
+```
+[student@workstation ~]$ ISTIO_GW=$(oc get route istio-ingressgateway \
+ -n istio-system -o jsonpath="{.spec.host}{.spec.path}")
+[student@workstation ~]$ echo $ISTIO_GW
+istio-ingressgateway-istio-system.apps.ocp4.example.com
+```
+
+Abra un navegador web para comprobar que la aplicación funciona correctamente. Se accede a la aplicación Financial a través de la URL de la puerta de enlace de entrada (ingress) que se acaba de recuperar con la ruta /frontend adjunta. Puede usar su navegador favorito para abrir esa URL o el siguiente comando para abrir la URL en Firefox:
+
+```
+[student@workstation ~]$ firefox $ISTIO_GW/frontend &
+```
+
+
+
 
 
 
