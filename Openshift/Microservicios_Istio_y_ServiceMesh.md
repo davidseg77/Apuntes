@@ -431,8 +431,388 @@ Abra un navegador web para comprobar que la aplicación funciona correctamente. 
 [student@workstation ~]$ firefox $ISTIO_GW/frontend &
 ```
 
+### Lanzamiento de canarios
 
+Genere el lanzamiento canario. Implemente la versión 2 de la aplicación vertx-greet creando una nueva implementación. Una vez implementada la nueva versión, dirija el 20 % del tráfico a la nueva versión.
 
+Haga una copia del archivo deployment-v1.yaml y nómbrela deployment-v2.yaml.
 
+```
+[student@workstation release-canary]$ cp deployment-v1.yaml deployment-v2.yaml
+```
 
+Modifique el archivo deployment-v2.yaml para introducir los cambios para la versión 2. Cambie el valor de metadata.name a vertx-greet-v2 y de spec.template.metadata.labels.version a v2. Por último, agregue la variable de entorno GREETING con el valor Hello Red Hat!.
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vertx-greet-v2
+spec:
+  selector:
+    matchLabels:
+      app: vertx-greet
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: vertx-greet
+        version: v2
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      containers:
+        - name: vertx-greet
+          image: quay.io/redhattraining/ossm-vertx-greet:1.0
+          ports:
+            - containerPort: 8080
+          env:
+          - name: GREETING
+            value: "Hello Red Hat!"
+```
+
+Puede ver la implementación completa de la versión 2 en ~/DO328/solutions/release-canary/deployment-v2.yaml.
+
+Implemente la versión 2 creando la nueva implementación.
+
+```
+[student@workstation release-canary]$ oc create -f deployment-v2.yaml
+deployment.apps/vertx-greet-v2 created
+```
+
+Revise el archivo destination-rule.yaml proporcionado.
+
+```
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: vertx-greet
+spec:
+  host: vertx-greet
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+  - name: v2
+    labels:
+      version: v2
+```
+
+El archivo define dos subconjuntos, uno para cada versión. Cada subconjunto representa una parte del tráfico e incluye un nombre y una etiqueta que asocia el subconjunto con la versión de implementación. La versión es la especificada por la propiedad spec.template.metadata.labels.version en cada recurso Deployment.
+
+Cree una regla de destino con el archivo destination-rule.yaml.
+
+```
+[student@workstation release-canary]$ oc create -f destination-rule.yaml
+destinationrule.networking.istio.io/vertx-greet created
+```
+
+Modifique el recurso VirtualService con el comando oc edit para enviar el 80 % del tráfico a v1 y el 20 % restante a v2. Asocie el destino existente con el subconjunto v1 y agregue una ponderación de 80. A continuación, agregue otro destino para el subconjunto v2 con una ponderación de 20.
+
+```
+[student@workstation release-canary]$ oc edit virtualservice vertx-greet
+```
+
+Aplique los cambios en el editor de texto.
+
+```
+...output omitted...
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  ...output omitted...
+  name: vertx-greet
+  ...output omitted...
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - vertx-greet-gateway
+  http:
+  - route:
+    - destination:
+        host: vertx-greet
+        subset: v1
+        port:
+          number: 8080
+      weight: 80
+    - destination:
+        host: vertx-greet
+        subset: v2
+        port:
+          number: 8080
+      weight: 20
+...output omitted...
+```
+
+Guarde los cambios en el recurso y cierre el editor de texto.
+
+Puede ver el servicio virtual completo en ~/DO328/solutions/release-canary/virtual-service-v1.yaml. Aplique la configuración con el comando oc apply.
+
+Ejecute test_canary.py para comprobar que la porción de respuestas esperada para cada servicio corresponde a las ponderaciones configuradas en los pasos anteriores. Este script envía una secuencia de 50 solicitudes a la URL especificada y muestra el resultado. Desde un paso anterior, debe tener la URL de la ruta de la puerta de enlace almacenada en la variable de entorno GATEWAY_URL. Ejecute el script pasando esta variable como primer parámetro.
+
+```
+[student@workstation release-canary]$ ./test_canary.py $GATEWAY_URL
+```
+
+Espere hasta que termine el script.
+
+```
+...output omitted...
+Hello World!
+Hello World!
+Hello World!
+Hello World!
+Hello World!
+Hello World!
+Hello World!
+Hello Red Hat!
+...output omitted...
+Total requests: 50
+* 'Hello World!' responses: 42 (84.0%)
+* 'Hello Red Hat!' responses: 8 (16.0%)
+* Errors: 0 (0.0%)
+```
+
+### Duplicación en OpenShift Service Mesh
+
+OpenShift Service Mesh usa los recursos DestinationRule para definir subconjuntos (generalmente versiones de servicio) y la entrada de destino en los recursos VirtualService para enrutar las solicitudes entre subconjuntos. OpenShift Service Mesh proporciona la duplicación de tráfico mediante el uso de los mismos recursos DestinationRule y la introducción de una entrada de duplicación en la ruta VirtualService:
+
+```
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: my_virtual_service
+spec:
+  hosts:
+    - target_host
+  http:
+  - route:
+    - destination:
+        host: old_service_name
+        subset: old_subset
+    mirror: 1
+      host: new_service_name 2
+      subset: new_subset 3
+```
+
+1
+
+La entrada duplicada define el servicio al que Istio está enviando copias de solicitud.
+
+2
+
+El nombre del servicio que recibe el tráfico duplicado.
+
+3
+
+El subconjunto de hosts que reciben el tráfico duplicado, como se define en DestinationRule.
+
+### Duplicación de un porcentaje del tráfico
+
+Hay situaciones en las que no es necesario o deseable reflejar todo el tráfico en el nuevo servicio. Por ejemplo, cuando no se requiere mantener el estado más reciente del servicio o cuando reducir el tráfico entre servicios es más importante que probar todas las solicitudes. En esas situaciones, Istio y OpenShift Service Mesh permiten definir un porcentaje del tráfico duplicado:
+
+```
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: my_virtual_service
+spec:
+  hosts:
+    - target_host
+  http:
+  - route:
+    - destination:
+        host: old_service_name
+        subset: old_subset
+    mirror:
+      host: new_service_name
+      subset: new_subset
+    mirror_percent: 10
+```
+
+### Lanzamiento de errores HTTP
+
+Por ejemplo, si desea descartar el 20 % de las conexiones a example-svc de otros servicios y devolver el error Bad Request (Mala solicitud), puede usar un código como este en el servicio virtual:
+
+```
+apiVersion: networking.istio.io/v1beta1
+  kind: VirtualService
+  metadata:
+    name: example-vs
+  spec:
+    hosts:
+    - example-svc
+    http:
+    - route:
+      - destination:
+          host: example-svc
+          subset: v1
+      fault: 1
+        abort: 2
+          percentage: 3
+            value: 20.0
+          httpStatus: 400 4
+```
+
+1
+
+Objeto de configuración HTTPFaultInjection responsable de todas las fallas inyectadas en el servicio.
+
+2
+
+HTTPFaultInjection.Objeto de configuración Abort (Cancelar) responsable de la configuración de la inyección de error.
+
+3
+
+Porcentaje de las conexiones que se cancelarán.
+
+4
+
+El código de estado HTTP que se devolverá al cancelar.
+
+### Creación de demoras en los servicios
+
+Por ejemplo, para agregar un retraso de 400 milisegundos al 10 % de las conexiones al servicio example-svc, puede usar lo siguiente:
+
+```
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: example-vs
+spec:
+  hosts:
+  - example-svc
+  http:
+  - route:
+    - destination:
+        host: example-svc
+        subset: v1
+    fault: 1
+      delay: 2
+        percentage: 3
+          value: 10.0
+        fixedDelay: 400ms 4
+```
+
+1
+
+Objeto de configuración HTTPFaultInjection responsable de las fallas inyectadas en el servicio.
+
+2
+
+El objeto de configuración HTTPFaultInjection.Delay responsable de la configuración de la inyección de demoras.
+
+3
+
+Porcentaje de las conexiones que se retrasarán.
+
+4
+
+Cantidad de tiempo para retrasar la conexión.
+
+### Configuración de tiempos de espera usando servicios virtuales
+
+Los servicios virtuales le permiten configurar tiempos de espera para todo el tráfico enrutado a un servicio. Puede aplicar una configuración de tiempo de espera usando el campo timeout (tiempo de espera) en las reglas de ruta y asignando un valor medido en segundos.
+
+En el siguiente ejemplo se muestra una configuración de tiempo de espera en un servicio virtual:
+
+```
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: a-service-vs
+spec:
+  hosts:
+    - example-svc
+  http:
+    - route:
+        - destination:
+          host: preference
+      timeout: 1s
+```
+
+En el ejemplo anterior, Envoy espera hasta 1 segundo en cualquier llamada al servicio example-svc antes de devolver un error de tiempo de espera.
+
+### Configuración de reintentos usando servicios virtuales
+
+Puede configurar el patrón de reintento en el recurso del servicio virtual, por ejemplo:
+
+```
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: example-vs
+spec:
+  hosts:
+  - example-svc
+  http:
+  - route:
+    - destination:
+        host: example-svc
+        subset: v1
+    retries: 1
+      attempts: 3 2
+      perTryTimeout: 2s 3
+      retryOn: 5xx,retriable-4xx 4
+```
+
+1
+
+El objeto HTTPRetry responsable de configurar los reintentos.
+
+2
+
+El número de veces que se reenvía una solicitud.
+
+3
+
+Un valor de tiempo de espera para cada solicitud de reintento. Los valores válidos están en milisegundos (ms), segundos (s), minutos (m) u horas (h).
+
+4
+
+Una política que especifica las condiciones que provocan que se vuelvan a intentar las solicitudes con errores. El valor es una lista de valores separados por comas.
+
+### Configuración de interruptores en OpenShift Service Mesh
+
+Para habilitar un interruptor, incluya una entrada outlierDetection en el recurso DestinationRule relacionado con el servicio:
+
+```
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: myDestinationRule
+spec:
+  host: myService 1
+  trafficPolicy: 2
+    outlierDetection:
+      consecutive5xxErrors: 1 3
+      interval: 1s 4
+      baseEjectionTime: 3m 5
+      maxEjectionPercent: 100 6
+```
+
+1
+
+host no se refiere al host físico, sino al nombre del servicio. Consulte las referencias para obtener más detalles.
+
+2
+
+La entrada outlierDetection pertenece al objeto trafficPolicy.
+
+3
+
+Define cuántos errores 5xx se permiten antes de desalojar el host.
+
+4
+
+El intervalo de tiempo entre la comprobación de los recuentos de errores.
+
+5
+
+La cantidad mínima de tiempo de expulsión del host.
+
+6
+
+El porcentaje máximo de hosts desalojados que pertenece a un servicio en cualquier momento.
 
