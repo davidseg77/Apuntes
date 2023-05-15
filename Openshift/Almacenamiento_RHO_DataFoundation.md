@@ -203,3 +203,33 @@ La persistencia de los datos de la pila (stack) de monitoreo sirve para el anál
 
 OpenShift Data Foundation proporciona servicios de almacenamiento de archivos mediante el almacenamiento de sistemas de archivo Ceph (Ceph FS).
 
+### Configuración del almacenamiento persistente para el registro interno RHOCP
+
+Para configurar el almacenamiento para el registro, el recurso configs.imageregistry.operator.openshift.io ofrece el parámetro storage. Por ejemplo, use los siguientes parámetros para habilitar el almacenamiento S3:
+
+```
+storage:
+  s3:
+    bucket: <bucket-name>
+    region: <region-name>
+    regionEndpoint: <region-endpoint-name>
+```
+
+Además, el secreto image-registry-private-configuration-user está disponible en el openshift-image-registry namespace. Este secreto se usa para configurar el acceso y la gestión del almacenamiento. Las credenciales de este secreto anulan las credenciales predeterminadas usadas por el operador del registro de imágenes, si están configuradas.
+
+Para configurar las credenciales de acceso al almacenamiento S3, el secreto image-registry-private-configuration-user debe contener dos claves:
+
+* REGISTRY_STORAGE_S3_ACCESSKEY
+
+* REGISTRY_STORAGE_S3_SECRETKEY
+
+El siguiente comando crea el secreto image-registry-private-configuration-user:
+
+```
+[user@demo ~]$ oc create secret generic \
+  image-registry-private-configuration-user \
+  --from-literal=REGISTRY_STORAGE_S3_ACCESSKEY=myaccesskey \
+  --from-literal=REGISTRY_STORAGE_S3_SECRETKEY=mysecretkey \
+  --namespace openshift-image-registry
+```
+
