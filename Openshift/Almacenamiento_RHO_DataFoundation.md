@@ -233,3 +233,195 @@ El siguiente comando crea el secreto image-registry-private-configuration-user:
   --namespace openshift-image-registry
 ```
 
+### Análisis de Ceph con OpenShift
+
+Ceph es gestionado por el operador Rook-Ceph. Local Storage Operator (LSO) crea volúmenes persistentes que se pasan al operador Rook-Ceph para crear el clúster de Ceph.
+
+Cada elemento de Ceph se ejecuta dentro de un pod.
+
+```
+[user@demo ~]$ oc get pods -n openshift-storage
+```
+
+### Investigación de un clúster de Ceph
+
+Hay muchas maneras de verificar el estado de un clúster de Ceph, por ejemplo, mediante la revisión de los registros del clúster, el uso de las herramientas de cliente de Ceph o de la herramienta must-gather. Estas son algunas de las formas comunes en que puede examinar el estado del clúster y obtener información de solución de problemas en un clúster Ceph administrado por OpenShift Data Foundation.
+
+**Inspección de registros de componentes de Ceph**
+
+Revisar los registros suele ser una forma rápida de determinar el origen de un problema. Por lo general, un problema se presenta en forma de mensajes de error. Con Ceph, muchos problemas son de recuperación automática, pero si el clúster no se recupera automáticamente, es probable que vea mensajes de error cerca del final de los registros.
+
+Esta sección proporciona información sobre cómo acceder a cada registro de Ceph.
+
+* Registros de OSD
+
+```
+[user@demo ~]$ oc logs \
+  rook-ceph-osd-0-6cbf78cd77-t7dnr -n openshift-storage
+```
+
+* Registros de monitoreo
+
+```
+[user@demo ~]$ oc logs \
+  rook-ceph-mon-a-585ffd45d5-7vvlv -n openshift-storage
+```
+
+* Registros del operador Rook
+
+```
+[user@demo ~]$ oc logs \
+  rook-ceph-operator-548bcdc79f-xcgjb -n openshift-storage
+```
+
+* Registros de almacenamiento de archivos CephFS
+
+```
+[user@demo ~]$ oc logs \
+  csi-cephfsplugin-722b2 -n openshift-storage -c csi-cephfsplugin
+```
+
+* Registros de almacenamiento en bloque del complemento (plug-in) RBD
+
+```
+[user@demo ~]$ oc logs \
+  csi-rbdplugin-86dpc -n openshift-storage \
+  -c csi-rbdplugin
+```
+
+### Uso de las herramientas integradas de Ceph para recopilar información del clúster
+
+Ceph proporciona la herramienta integrada must-gather y la CLI de Ceph. Estas herramientas proporcionan una forma rápida de obtener información y registros para su revisión.
+
+**Uso de la CLI de Ceph**
+
+Para usar la CLI de Ceph, ingrese al operador Rook-Ceph y use el archivo de configuración /var/lib/rook/openshift-storage/openshift-storage.config para acceder al clúster:
+
+```
+[user@demo ~]$ oc exec -ti \
+  pod/rook-ceph-operator-548bcdc79f-xcgjb -n openshift-storage \
+  -c rook-ceph-operator -- /bin/bash
+```
+
+Puede obtener mucha información diferente a través de la CLI, como se muestra en los siguientes ejemplos.
+
+* Estado del clúster
+
+```
+bash-4.4$ ceph -c /var/lib/rook/openshift-storage/openshift-storage.config health
+```
+
+* Estado (status) del clúster
+
+```
+[user@demo ~]$ oc exec -ti \
+  pod/rook-ceph-operator-548bcdc79f-xcgjb \
+  -n openshift-storage -c rook-ceph-operator -- /bin/bash
+```
+
+* Uso del almacenamiento
+
+```
+bash-4.4$ ceph -c /var/lib/rook/openshift-storage/openshift-storage.config df
+```
+
+* Uso de la herramienta must-gather
+
+Use la herramienta must-gather para recopilar archivos de registro e información de diagnóstico sobre su clúster.
+
+```
+[user@demo ~]$ oc adm must-gather \
+  --image=registry.redhat.io/ocs4/ocs-must-gather-rhel8:v4.7 \
+  --dest-dir=must-gather
+```
+
+### Configuración de una reclamación de volumen persistente
+
+La clase de almacenamiento de archivos de OpenShift Data Foundation que se usa en las cargas de trabajo de las aplicaciones se especifica en los requisitos de almacenamiento dentro de las definiciones de recursos personalizadas. Configure la clase de almacenamiento de archivos ocs-storagecluster-cephfs para permitir que varios nodos accedan al volumen de almacenamiento estableciendo el valor accessModes en ReadWriteMany.
+
+**Clases de almacenamiento de archivos de OpenShift Data Foundation**
+
+OpenShift Data Foundation proporciona la clase de almacenamiento de archivos ocs-storagecluster-cephfs a través de CSI para CephFS.
+
+```
+[user@demo ~]$ oc get storageclasses.storage.k8s.io
+```
+
+Use el comando oc describe para ver los detalles de la clase de almacenamiento ocs-storagecluster-cephfs.
+
+```
+[user@demo ~]$ oc describe storageclass ocs-storagecluster-cephfs
+```
+
+### Ejemplo de reclamación de volúmenes persistentes para ceph
+
+El siguiente archivo muestra un ejemplo de una definición de recurso personalizada para production-application con un volumen de 10Gi provisto por la clase de almacenamiento de archivos ocs-storagecluster-cephfs de OpenShift Data Foundation.
+
+```
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: production-application
+spec:
+  accessModes:
+  - ReadWriteMany
+  storageClassName: ocs-storagecluster-cephfs
+  resources:
+    requests:
+      storage: 10Gi
+```
+
+Observe que accessModes está configurado en ReadWriteMany para admitir el escenario común de compartir archivos centralizados con numerosas instancias de aplicaciones. Por ejemplo, esta configuración permite que varios servidores web compartan un conjunto de datos de almacenamiento de archivos común.
+
+### Ejemplo de reclamación de volúmenes persistentes para almacenamiento en bloque
+
+En el siguiente archivo se muestra un ejemplo de una definición de recurso personalizada para production-application con un volumen de 10Gi provisto por la clase de almacenamiento en bloque ocs-storagecluster-ceph-rbd de OpenShift Data Foundation.
+
+```
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: production-application
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: ocs-storagecluster-ceph-rbd
+  resources:
+    requests:
+      storage: 10Gi
+```
+
+Tenga en cuenta que accessModes está configurado en ReadWriteOnce para proporcionar seguridad e integridad de datos al permitir el acceso a un solo nodo. Por ejemplo, esta configuración es apropiada para el volumen de datos de una base de datos SQL que usa el almacenamiento en bloque.
+
+### Administración de RBAC mediante la CLI
+
+Los administradores de clústeres pueden usar el comando oc adm policy para agregar y quitar roles de clústeres y roles de espacio de nombres.
+
+Para otorgar a un usuario un rol de clúster, use el subcomando add-cluster-role-to-user:
+
+```
+[user@host ~]$ oc adm policy add-cluster-role-to-user cluster-role username
+```
+
+Un usuario con el rol cluster-admin puede administrar completamente todos los conjuntos (pools) de almacenamiento, clases de almacenamiento y reclamaciones de volúmenes persistentes (PVC) en todos los proyectos.
+
+```
+[user@host ~]$ oc adm policy add-cluster-role-to-user cluster-admin username
+```
+
+**Roles predeterminados**
+
+OpenShift proporciona un conjunto de roles de clúster predeterminados que se pueden asignar localmente o a todo el clúster. Puede modificar estos roles para controlar de forma detallada el acceso a los recursos de OpenShift, pero se requieren pasos adicionales que no se cubren este curso.
+
+| Roles predeterminados |	Descripción |
+|:--------:|:------------:|
+| admin	| Los usuarios con este rol pueden administrar todos los recursos del proyecto, incluso otorgar acceso al proyecto a otros usuarios. |
+| basic-user	| Los usuarios con este rol tienen acceso de lectura al proyecto. |
+| cluster-admin |	Los usuarios con este rol tienen acceso de superusuario a los recursos del clúster. Estos usuarios pueden realizar cualquier acción en el clúster y tienen control total de todos los proyectos. |
+| cluster-status	| Los usuarios con este rol pueden obtener información sobre el estado del clúster. |
+| edit	| Los usuarios con este rol pueden crear, modificar y eliminar recursos de aplicaciones comunes del proyecto, como servicios e implementaciones. No pueden actuar sobre recursos de administración, como cuotas y rangos límite, y no pueden administrar permisos de acceso al proyecto. |
+| self-provisioner |	Los usuarios con este rol pueden crear nuevos proyectos. Este es un rol de clúster, no un rol de proyecto. |
+| view	| Los usuarios con este rol pueden ver los recursos del proyecto, pero no pueden modificar esos recursos. |
+
+
+
