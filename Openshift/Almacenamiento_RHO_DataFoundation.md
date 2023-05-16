@@ -423,5 +423,25 @@ OpenShift proporciona un conjunto de roles de clúster predeterminados que se pu
 | self-provisioner |	Los usuarios con este rol pueden crear nuevos proyectos. Este es un rol de clúster, no un rol de proyecto. |
 | view	| Los usuarios con este rol pueden ver los recursos del proyecto, pero no pueden modificar esos recursos. |
 
+Agregue el rol a un usuario con el subcomando add-role-to-user.
+
+```
+[user@host ~]$ oc policy add-role-to-user role-name username -n project
+```
+
+Por ejemplo, agregue el usuario developer al rol admin en el proyecto custom-app, use el siguiente comando:
+
+```
+[user@host ~]$ oc policy add-role-to-user admin developer -n custom-app
+```
+
+Use el comando oc adm policy who-can para ver y verificar si un usuario puede crear ahora el recurso persistentvolumeclaims.
+
+```
+[user@host ~]$ oc adm policy who-can create persistentvolumeclaims -n custom-app
+```
+
+
+
 
 
