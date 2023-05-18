@@ -441,7 +441,271 @@ Use el comando oc adm policy who-can para ver y verificar si un usuario puede cr
 [user@host ~]$ oc adm policy who-can create persistentvolumeclaims -n custom-app
 ```
 
+### Copia de seguridad de aplicaciones con estado (stateful)
 
+Las aplicaciones con estado (stateful) almacenan sus datos en volúmenes persistentes de bloques o archivos. El método para hacer copias de seguridad de los datos es diferente según la aplicación.
 
+La aplicación debe detenerse para realizar copias de seguridad de los datos.
 
+La aplicación tiene una herramienta de copia de seguridad especializada como mysqldump.
+
+**Copia de seguridad de datos de aplicaciones desde volúmenes persistentes**
+
+Escale la implementación a cero réplicas si la aplicación no se puede pausar.
+
+```
+[user@demo ~]$ oc scale deployment/my-application --replicas=0
+```
+
+Cree un trabajo que monte el volumen persistente y copie los datos en una ubicación de copia de seguridad.
+
+```
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: backup
+  namespace: application
+  labels:
+    app: backup
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app: backup
+    spec:
+      containers:
+      - name: backup
+        image: registry.access.redhat.com/ubi8/ubi:8.4-209
+        command: 1
+        - /bin/bash
+        - -vc
+        - 'dnf -qy install rsync && rsync -avH /var/application /opt/backup'
+        resources: {}
+        volumeMounts: 2
+        - name: application-data
+          mountPath: /var/application
+        - name: backup
+          mountPath: /opt/backup
+      volumes: 3
+      - name: application-data
+        persistentVolumeClaim:
+          claimName: pvc-application
+      - name: backup
+        persistentVolumeClaim:
+          claimName: pvc-backup
+      restartPolicy: Never
+```
+
+1
+
+Instale y ejecute rsync para copiar los archivos desde la PVC de datos de la aplicación a la PVC de copia de seguridad.
+
+2
+
+Definición de montaje en volumen para los datos de la aplicación y PV de copia de seguridad en el contenedor.
+
+3
+
+Sección de volumen en la definición de trabajo donde se hace referencia a los datos de la aplicación y a la PVC de copia de seguridad.
+
+```
+[user@demo ~]$ oc apply -f backup-job.yaml
+```
+
+Escale la aplicación cuando se complete la copia de seguridad para reanudar las operaciones.
+
+```
+[user@demo ~]$ oc scale deployment/my-application --replicas=1
+```
+### Ejercicio guiado: Creación de snapshots y clones de volúmenes
+
+**Obtenga los nombres de las clases de snapshots (instantáneas) de volumen actualmente presentes en el clúster.**
+
+```
+[student@workstation ~]$ oc get volumesnapshotclasses
+```
+
+Cambie la política de eliminación de las clases de snapshots (instantáneas) de volumen para conservarlas si se elimina el espacio de nombres de origen.
+
+```
+[student@workstation backup-volume]$ oc patch \
+  volumesnapshotclass/ocs-storagecluster-cephfsplugin-snapclass \
+  --type merge -p '{"deletionPolicy":"Retain"}'
+volumesnapshotclass.../ocs-storagecluster-cephfsplugin-snapclass  patched
+
+[student@workstation backup-volume]$ oc patch \
+  volumesnapshotclass/ocs-storagecluster-rbdplugin-snapclass \
+  --type merge -p '{"deletionPolicy":"Retain"}'
+volumesnapshotclass..../ocs-storagecluster-rbdplugin-snapclass  patched
+```
+
+Confirme que la política de eliminación ha cambiado.
+
+```
+[student@workstation backup-volume]$ oc get volumesnapshotclasses
+```
+
+**Implemente la aplicación de ejemplo.**
+
+Cree un nuevo proyecto para la aplicación de ejemplo.
+
+```
+[student@workstation backup-volume]$ oc new-project backup-volume
+```
+
+Despliegue la aplicación.
+
+```
+[student@workstation backup-volume]$ oc apply -f postgresql.yaml
+```
+
+Espere hasta que el pod esté en ejecución.
+
+```
+[student@workstation backup-volume]$ watch oc get deployments,pods
+```
+
+Muestre los datos contenidos en la aplicación.
+
+```
+[student@workstation backup-volume]$ oc exec -it deployment/postgresql -- /bin/bash
+root@postgresql-f6cf7799c-2s8x2:~# psql -U ${POSTGRES_USER} -w -d ${POSTGRES_DB}
+```
+
+**Haga una copia de seguridad de la aplicación.**
+
+Sincronice todas las tablas de la base de datos en un disco.
+
+El archivo job-backup.yaml contiene un trabajo que se conecta a la base de datos y ejecuta las instrucciones contenidas en el archivo/opt/prepare-backup.sql para prepararse para la copia de seguridad.
+
+```
+[student@workstation backup-volume]$ oc apply -f job-backup.yaml
+job.batch/postgresql-backup created
+
+[student@workstation backup-volume]$ oc logs -f job/postgresql-backup
+```
+
+Escale la implementación para detener la actividad en el PV.
+
+```
+[student@workstation backup-volume]$ oc scale deployment/postgresql --replicas 0
+```
+
+**Clone un PV.**
+
+Cree un clon del volumen de datos.
+
+```
+[student@workstation backup-volume]$ oc apply -f pvc-clone.yaml
+persistentvolumeclaim/postgresql-data-clone created
+
+[student@workstation backup-volume]$ oc get pvc/postgresql-data-clone
+```
+
+Verifique que el PV esté vinculado a la reclamación que se muestra en el paso anterior.
+
+```
+[student@workstation backup-volume]$ oc get pv/pvc-4958ef27-a919-462e-86eb-fea0e0532cc5
+```
+
+Implemente otra instancia de la aplicación que use la PVC que creó a partir del clon de volumen.
+
+```
+[student@workstation backup-volume]$ oc apply -f postgresql-clone.yaml
+```
+
+Revise los datos contenidos en la nueva instancia de la aplicación.
+
+```
+[student@workstation backup-volume]$ oc exec -it deployment/postgresql-clone -- /bin/bash
+root@postgresql-snapshot-5f44c79945-l2v9b:/# psql -U ${POSTGRES_USER} -w -d ${POSTGRES_DB}
+...output omitted...
+```
+
+**Cree una snapshot (instantánea) de un PV.**
+
+Cree una snapshot (instantánea) del volumen de datos.
+
+```
+[student@workstation backup-volume]$ oc apply -f volumesnapshot-postgres.yaml
+```
+
+Enumere las snapshots (instantáneas) de volumen y obtenga el contenido de la snapshot (instantánea) del volumen postgresql-data.
+
+```
+[student@workstation backup-volume]$ oc get volumesnapshots
+```
+
+Enumere el contenido de snapshots (instantáneas) de volumen y busque uno asociado con la snapshot (instantánea) del volumen postgresql-data.
+
+```
+[student@workstation backup-volume]$ oc get volumesnapshotcontents
+```
+
+Restaure el contenido de la snapshot (instantánea) de volumen a una PVC con un nombre diferente.
+
+```
+[student@workstation backup-volume]$ oc apply -f pvc-restore-postgres.yaml
+persistentvolumeclaim/postgresql-data-restore created
+
+[student@workstation backup-volume]$ oc get pvc -l app=postgresql-data-snapshot
+```
+
+Obtenga el PV asociado con la nueva PVC que se acaba de restaurar.
+
+```
+[student@workstation backup-volume]$ oc get pv/pvc-dfc4f2b8-1caf-44f0-8311-07378988e982
+```
+
+Implemente otra instancia de la aplicación que use la PVC que creó a partir de la snapshot (instantánea) del volumen.
+
+```
+[student@workstation backup-volume]$ oc apply -f postgresql-snapshot.yaml
+```
+
+Revise los datos contenidos en la nueva instancia de la aplicación.
+
+```
+[student@workstation backup-volume]$ oc exec -it deployment/postgresql-snapshot -- /bin/bash
+root@postgresql-snapshot-5f44c79945-l2v9b:/# psql -U ${POSTGRES_USER} -w -d ${POSTGRES_DB}
+...output omitted...
+```
+
+### Sintaxis de las reclamaciones de depósitos de objetos
+
+Los recursos de OBC pertenecen a un espacio de nombres específico y tienen un conjunto de parámetros.
+
+```
+---
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: my-object-bucket-claim 1
+  namespace: default 2
+spec:
+  storageClassName: openshift-storage.noobaa.io 3
+  generateBucketName: my-object-bucket-claim 4
+```
+
+1
+
+Nombre de la OBC.
+
+2
+
+Espacio de nombres de destino donde se crea el recurso.
+
+3
+
+Nombre de la clase de almacenamiento para el depósito de objetos.
+
+Para usar NooBaa MCG, establezca el valor en openshift-storage.noobaa.io.
+
+Para usar la puerta de enlace Ceph RGW, establezca el valor en ocs-storagecluster-ceph-rgw.
+
+4
+
+Nombre base del depósito de objetos que se generará. Los depósitos S3 no pertenecen a un espacio de nombres y el nombre debe ser único.
 
