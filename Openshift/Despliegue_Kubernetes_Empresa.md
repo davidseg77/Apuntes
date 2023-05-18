@@ -238,3 +238,104 @@ Enumere los hosts para todas las rutas utilizando los comandos and.curljq
   | jq '.items[].spec.host'
 ```
 
+### Operadores de instalación
+
+**Instalación de un operador desde OLM mediante la CLI**
+
+Consulte la lista de operadores disponibles.
+
+```
+[user@host ~]$ oc get packagemanifests
+```
+
+Inspeccione a un operador. Cada operador agrega nuevos tipos de recursos mediante definiciones de recursos personalizadas (CRD).
+
+```
+[user@host ~]$ oc describe packagemanifests file-integrity-operator
+```
+
+En la CLI, no hay una forma directa de obtener los canales del operador, por lo que necesita una consulta JSONPath.
+
+```
+[user@host ~]$ oc get packagemanifests file-integrity-operator \
+  --output='jsonpath={range .status.channels[*]}{.name}{"\n"}{end}'
+```
+
+**Verificación del estado del operador**
+
+Hay varias maneras de comprobar el estado del operador. El resto de esta sección proporciona información adicional acerca de la inspección de registros de eventos, objetos de suscripción e información de espacio de nombres para comprobar el estado de un operador.
+
+Compruebe los registros del pod OLM para verificar la instalación del operador.
+
+```
+[user@host ~]$ oc logs pod/olm-operator-c5599dfd7-nknfx \
+  -n openshift-operator-lifecycle-manager
+```
+
+Inspeccione el objeto de suscripción para comprobar el estado del operador.
+
+```
+[user@host ~]$ oc describe sub <subscription-name> -n <namespace>
+...output omitted...
+```
+
+**Listar todos los operadores**
+
+Enumere los operadores instalados comprobando las versiones del servicio de clúster. Para enumerar todos los operadores instalados, obtenga las versiones del servicio de clúster en todos los espacios de nombres.
+
+```
+[user@host ~]$ oc get csv -A
+```
+
+Los operadores se pueden suscribir a un espacio de nombres o a todos los espacios de nombres. Para enumerar los operadores administrados por OLM, enumere las suscripciones activas.
+
+```
+[user@host ~]$ oc get subs -A
+```
+
+Para ver el estado y los eventos de los recursos personalizados relacionados con un operador determinado, describa la implementación del operador.
+
+```
+[user@host ~]$ oc describe deployment.apps/file-integrity-operator | \
+  grep -i kind
+```
+
+Compruebe los elementos del operador obteniendo todos los objetos del espacio de nombres del operador. Si el operador está instalado en todos los espacios de nombres, realice la consulta en el espacio de nombres y busque el nombre del operador para descubrir los elementos.openshift-operators
+
+```
+[user@host ~]$ oc get all -n openshift-file-integrity
+```
+
+Utilice el comando para ver eventos y registros de un operador.oc logs
+
+```
+[user@host ~]$ oc logs deployment.apps/file-integrity-operator
+```
+
+**Actualización de un operador desde OLM mediante la CLI**
+
+Modifique el archivo YAML del operador y aplique los cambios deseados al objeto de suscripción.
+
+```
+[user@host ~]$ oc apply -f file-integrity-operator-subscription.yaml
+```
+
+**Eliminación de operadores**
+
+Para quitar un operador del clúster, elimine los objetos de suscripción y versión del servicio de clúster.
+
+Compruebe la versión actual del operador suscrito en el campo.currentCSV
+
+```
+[user@host ~]$ oc get sub <subscription-name> -o yaml | grep currentCSV
+currentCSV: ...output omitted...
+```
+
+Elimine el objeto de suscripción. Utilice el valor obtenido del comando anterior para eliminar el objeto de versión del servicio de Cluster Server.
+
+```
+[user@host ~]$ oc delete sub <subscription-name>
+[user@host ~]$ oc delete csv <currentCSV>
+```
+
+
