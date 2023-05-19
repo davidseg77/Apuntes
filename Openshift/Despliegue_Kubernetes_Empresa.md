@@ -338,4 +338,21 @@ Elimine el objeto de suscripción. Utilice el valor obtenido del comando anterio
 [user@host ~]$ oc delete csv <currentCSV>
 ```
 
+### Implementación de Jenkins en OpenShift mediante plantillas estándar
+
+Las plantillas estándar definen parámetros y valores predeterminados para el tamaño de volumen persistente y los requisitos de memoria, entre otros. Las instancias pequeñas de Jenkins no requieren cambios en estos valores de parámetros predeterminados y se pueden implementar creando un proyecto y, a continuación, ejecutando:
+
+```
+[user@host ~]$ oc new-app --template jenkins-persistent
+```
+
+**Generación de tokens de API de Jenkins**
+
+Para usar la API de Jenkins o la CLI de Jenkins, necesita un token de API. Ese token reemplaza la contraseña en un encabezado de autenticación HTTP BASIC, por ejemplo:
+
+```
+[user@host ~] curl --user 'jenkins-user:token' \
+  https://jenkins-host/resource-path
+```
+
 
