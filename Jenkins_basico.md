@@ -45,9 +45,9 @@ http://localhost:9080/cli/
 
 ### Comandos disponibles
 
-- **add-job-to-view**	Adds jobs to view.
+**add-job-to-view**	Adds jobs to view.
   
-- **build**	Ejecuta una tarea, y opcionalmente espera hasta que acabe.
+**build**	Ejecuta una tarea, y opcionalmente espera hasta que acabe.
   
 **cancel-quiet-down**	Cancelar el efecto del comando "quiet-down".
 
