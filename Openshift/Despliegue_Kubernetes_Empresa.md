@@ -355,4 +355,165 @@ Para usar la API de Jenkins o la CLI de Jenkins, necesita un token de API. Ese t
   https://jenkins-host/resource-path
 ```
 
+### Configuración del proveedor de identidades LDAP
+
+Para configurar un servidor LDAP como proveedor de identidades:
+
+Cree un secreto con la contraseña de usuario administrador de IdM. Este secreto se utilizará para el proveedor de identidad LDAP:
+
+```
+[user@host ~]$ oc create secret generic ldap-secret \
+  --from-literal=bindPassword=${LDAP_ADMIN_PASSWORD} \
+  -n openshift-config
+```
+
+La comunicación TLS necesita validación de la autoridad de certificación, en este caso, la CA se obtiene del IdM, que se configura con el aula.
+
+Cree un mapa de configuración que contenga el certificado raíz de la autoridad de certificación IdM para que OpenShift confíe en los certificados IdM:
+
+```
+[user@host ~]$ oc create configmap ca-config-map \
+  --from-file=\
+  ca.crt=<(curl http://idm.ocp-${GUID}.example.com/ipa/config/ca.crt) \
+  -n openshift-config
+```
+
+Cree un archivo para modificar la configuración de OAuth de OpenShift agregando el proveedor de identidad LDAP y los demás elementos necesarios para una configuración adecuada.
+
+```
+apiVersion: config.openshift.io/v1
+kind: OAuth
+metadata:
+  name: cluster
+spec:
+  identityProviders:
+  - name: ldapidp
+    mappingMethod: claim
+    type: LDAP
+    ldap:
+      attributes:
+        id:
+        - dn
+        email:
+        - mail
+        name:
+        - cn
+        preferredUsername:
+        - uid
+      bindDN: "uid=admin,cn=users,cn=accounts,dc=ocp4,dc=example,dc=com"
+      bindPassword:
+        name: ldap-secret
+      ca:
+        name: ca-config-map
+      insecure: false
+      url: "ldaps://idm.ocp4.example.com/cn=users,cn=accounts,dc=ocp4,dc=example,dc=com?uid"
+```
+
+Aplique el recurso personalizado y espere hasta que se reinicien los pods del espacio de nombres para que el proveedor de identidades esté activo:openshift-authentication
+
+```
+[user@host ~]$ oc apply -f tmp/ldap-cr.yml
+```
+
+Compruebe que puede iniciar sesión con los usuarios de IdM. Si se agregan más usuarios al IdM, estarán disponibles inmediatamente y los pods de OAuth de OpenShift no se reiniciarán, a diferencia del caso de uso de HTPasswd.
+
+```
+[user@host ~]$ oc login -u admin -p ${LDAP_ADMIN_PASSWORD}
+[user@host ~]$ oc whoami
+```
+
+Para comprobar si hay algún problema con la integración de IdM, compruebe el estado del pod y los registros de la implementación en el espacio de nombres.deployment.apps/oauth-openshiftopenshift-authentication
+
+```
+[user@host ~]$ oc get pods -n openshift-authentication
+[user@host ~]$ oc logs deployment.apps/oauth-openshift
+```
+
+Cuando los usuarios inician sesión utilizando el servidor LDAP como proveedor de identidades, OpenShift crea nuevas entradas.useridentity
+
+```
+[user@host ~]$ oc get user
+[user@host ~]$ oc get identity
+```
+
+En caso de que sea necesario, agregue el rol a los usuarios del IdM que necesitan privilegios de administración de clústeres.cluster-admin
+
+```
+[user@host ~]$ oc adm policy add-cluster-role-to-user cluster-admin admin
+```
+
+### Creación de configuraciones de máquina
+
+Las configuraciones de la máquina se especifican con una etiqueta. Enumere las configuraciones de máquina para un rol específico mediante el argumento.machineconfiguration.openshift.io/role--selector
+
+```
+[user@host ~]$ oc get machineconfig \
+  --selector=machineconfiguration.openshift.io/role=worker
+```
+
+**Escribir archivos personalizados**
+
+Especifique el contenido de archivo personalizado, como la configuración de Systemd o los certificados TLS, en un formato de escape siguiendo el estándar de esquema de URL de datos. El contenido del archivo suele estar codificado en Base64 en archivos de encendido. Otro contenido, como las unidades Systemd o las claves ssh, no están codificadas en Base64. En un terminal, utilice los comandos y para codificar archivos o entradas estándar.base64base64 -d
+
+**Ejemplo de MachineConfig de Journald**
+
+```
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: worker 1
+  name: 60-journald 2
+spec:
+  config:
+    ignition:
+      version: 2.2.0
+    storage:
+      files:
+      - contents:
+          source: data:text/plain;charset=utf-8;base64,VGVzdGl...E8gKItAo= 3
+        filesystem: root
+        mode: 0644
+        path: /etc/systemd/journald.conf
+``` 
+
+1
+
+Etiquete los recursos de configuración de la máquina por rol.
+
+2
+
+Prefijo el nombre con un número de dos dígitos que especifica cuándo aplicar la configuración, en relación con las configuraciones de máquina que pertenecen al mismo grupo de configuraciones de máquina.
+ 
+3
+
+Utilice el formato de URL de datos para incrustar contenido de archivo de escape (evacuado). La codificación Base64 es común para los archivos Ignition.
+
+### Creación de grupos de configuración de máquina
+
+En la siguiente especificación se muestra la creación de un grupo independiente para los nodos de aprendizaje automático (ml).MachineConfigPool
+
+```
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfigPool
+metadata:
+    name: ml
+spec:
+    machineConfigSelector:
+        matchExpressions:
+            - key: machineconfiguration.openshift.io/role
+              operator: In
+              values: [worker, ml] 1
+    nodeSelector:
+        matchLabels:
+        node-role.kubernetes.io/ml: "" 2
+```
+
+1
+
+Incluya ambas configuraciones y configuraciones de máquina.workerml
+
+2
+
+Aplicar a los nodos con la etiqueta.node-role.kubernetes.io/ml
 
