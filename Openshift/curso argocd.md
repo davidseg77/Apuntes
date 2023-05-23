@@ -102,7 +102,9 @@ Let's break this down a bit.
 
 The Application CR (CustomResource) can be applied by running the following:
 
+```
 oc apply -f https://raw.githubusercontent.com/redhat-developer-demos/openshift-gitops-examples/main/components/applications/bgd-app.yaml
+```
 
 This should create the bgd-app in the ArgoCD UI.
 
@@ -110,21 +112,71 @@ Clicking on this "card" takes you to the overview page. You may see it as still 
 
 At this point the application should be up and running. You can see all the resources created with the command:
 
+```
 oc get pods,svc,route -n bgd
+```
 
 First wait for the rollout to complete
 
+```
 oc rollout status deploy/bgd -n bgd
+```
 
 Then visit your application using the route by navigating to the URL under the "HOST/PORT" column
 
+```
 oc get route -n bgd
+```
 
 Let's introduce a change! Patch the live manifest to change the color of the box from blue to green:
 
+```
 oc -n bgd patch deploy/bgd --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/env/0/value", "value":"green"}]'
+```
 
 Wait for the rollout to happen:
 
+```
 oc rollout status deploy/bgd -n bgd
+```
+
+If you refresh your tab where your application is running you should see a green square now.
+
+Looking over at your Argo CD Web UI, you can see that Argo detects your application as "Out of Sync".
+
+You can sync your app via the Argo CD by:
+
+First clicking SYNC
+Then clicking SYNCHRONIZE
+Conversely, you can run
+
+```
+argocd app sync bgd-app
+```
+
+After the sync process is done, the Argo CD UI should mark the application as in sync.
+
+If you reload the page on the tab where the application is running. It should have returned to a blue square.
+
+You can setup Argo CD to automatically correct drift by setting the Application manifest to do so. Here is an example snippet:
+
+```
+spec:
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+```
+
+Or, as in our case, after the fact by running the following command:
+
+```
+oc patch application/bgd-app -n openshift-gitops --type=merge -p='{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'
+```
+
+
+
+
+
+
 
