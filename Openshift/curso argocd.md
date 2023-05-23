@@ -74,4 +74,57 @@ ls ~/.argocd/config
 
 The argocd CLI tool is useful for debugging and viewing status of your apps deployed.
 
+### Deploying a Sample Application
+
+In this environment, we have some example manifesets taken from our sample GitOps repo. We'll be uisng this repo to test. These manifests include:
+
+- A Namespace: bgd-ns.yaml
+- A Deployment: bgd-deployment.yaml
+- A Service: bgd-svc.yaml
+- A Route: bgd-route.yaml
+
+Collectively, this is known as an Application within ArgoCD. Therefore, you must define it as such in order to apply these manifest in your cluster.
+
+
+**Open up the Argo CD Application manifest: bgd-app.yaml**
+
+Let's break this down a bit.
+
+- ArgoCD's concept of a Project is different than OpenShift's. Here you're installing the application in ArgoCD's default project (.spec.project). NOT OpenShift's default project.
+
+- The destination server is the server we installed ArgoCD on (noted as .spec.destination.server).
+
+- The manifest repo where the YAML resides and the path to look for the YAML is under .spec.source.
+
+- The .spec.syncPolicy is set to false. Note that you can have Argo CD automatically sync the repo.
+
+- The last section .spec.sync just says what are you comparing the repo to. (Basically "Compare the running config to the desired config")
+
+The Application CR (CustomResource) can be applied by running the following:
+
+oc apply -f https://raw.githubusercontent.com/redhat-developer-demos/openshift-gitops-examples/main/components/applications/bgd-app.yaml
+
+This should create the bgd-app in the ArgoCD UI.
+
+Clicking on this "card" takes you to the overview page. You may see it as still progressing or full synced.
+
+At this point the application should be up and running. You can see all the resources created with the command:
+
+oc get pods,svc,route -n bgd
+
+First wait for the rollout to complete
+
+oc rollout status deploy/bgd -n bgd
+
+Then visit your application using the route by navigating to the URL under the "HOST/PORT" column
+
+oc get route -n bgd
+
+Let's introduce a change! Patch the live manifest to change the color of the box from blue to green:
+
+oc -n bgd patch deploy/bgd --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/env/0/value", "value":"green"}]'
+
+Wait for the rollout to happen:
+
+oc rollout status deploy/bgd -n bgd
 
