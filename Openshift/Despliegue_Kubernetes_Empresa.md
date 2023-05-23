@@ -517,3 +517,42 @@ Incluya ambas configuraciones y configuraciones de máquina.workerml
 
 Aplicar a los nodos con la etiqueta.node-role.kubernetes.io/ml
 
+### Administración de volúmenes persistentes de archivos de Azure
+
+OpenShift tiene un aprovisionador integrado para volúmenes persistentes de archivos de Azure. Para usar volúmenes de archivos de Azure en OpenShift, primero cree un secreto que contenga las credenciales de su cuenta de Azure Storage. En segundo lugar, cree una clase de almacenamiento para cada nivel de Azure File que necesite para el clúster de OpenShift.
+
+Cada definición de clase de almacenamiento contiene una referencia al secreto de credenciales de almacenamiento de Azure. OpenShift usa el aprovisionador de archivos de Azure para administrar todos los volúmenes persistentes de Azure File en el clúster. A continuación se muestra un ejemplo de definición de clase de almacenamiento de archivos de Azure:
+
+```
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: azurefile-lrs 1
+provisioner: kubernetes.io/azure-file 2
+parameters:
+  skuName: Standard_LRS 3
+  storageAccount: azure_storage_account_name 4
+  secretNamespace: my-secret-namespace 5
+  secretName: azure-storage-credentials 6
+```
+
+1
+
+Nombre de la clase de almacenamiento. Para solicitar este tipo de almacenamiento, una notificación de volumen persistente utiliza un valor de .StorageClassNameazurefile-lrs
+
+2
+
+Un valor de indica a OpenShift que use el aprovisionador de Azure Files para crear volúmenes persistentes. El aprovisionador de archivos de Azure usa los valores de la sección para crear volúmenes persistentes con características específicas.provisionerkubernetes.io/azure-fileparameters
+
+3
+
+El parámetro especifica un nivel de almacenamiento de archivos de Azure. El valor corresponde al almacenamiento estándar con redundancia local (LRS).skuNameStandard_LRS
+
+4
+
+El aprovisionador requiere un nombre de cuenta para autenticarse en la API de Azure Files.
+
+5 6
+
+El aprovisionador requiere credenciales confidenciales para autenticarse en la API de Azure Files. El aprovisionador recupera credenciales confidenciales de un recurso secreto y, a continuación, las usa para autenticarse en la API de Azure Files.
+
