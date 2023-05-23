@@ -1,0 +1,76 @@
+# Curso de Kubernetes implantado en Openshift
+
+### Step 1: Log in to the Developer Sandbox
+
+If you’re unsure how to do this, you can find instructions here: Access your Developer Sandbox for Red Hat OpenShift from the command line | Red Hat Developer
+
+### Step 2: Prepare the local Kubernetes configuration to allow access from the command line
+
+You don't log in to a Kubernetes cluster. You actually set your local environment to access the API server when issuing kubectl commands.
+
+If you have the OpenShift command-line interface (oc) installed (not necessary for this tutorial), you can cheat and use the oc login command. If you can install the oc CLI, it makes life a lot easier.
+
+After establishing those three parts, you use the context you desire. The following commands will take care of this, but first we need to extract some pieces of information from our sandbox. We'll need to get the following items:
+
+- Username, which is represented by {username} in the following commands
+- Authorization token {token}
+- Name of the cluster {cluster_name}
+- Context assigned to us {context}
+- URL of the cluster API server {api_server_url}
+
+You'll need to be logged in to your sandbox dashboard to get this information.
+
+**Username**
+
+Our value for {username}. This is displayed in the upper right corner of the dashboard.
+
+**Authorization token**
+
+Our value for {token}. If you click on username, select Copy login command, and log in as DevSandbox, you can see your token.
+
+**URL of the cluster API server**
+
+Our value for {api_server-url}. Using the same instructions as the previous section.
+
+**Name of the cluster**
+
+Our value for {cluster_name}. The cluster name is a modification of the host URL with all periods converted to dashes. Also, the console-openshift-console-apps portion of the host URL is replaced with api. For example, if you navigate to the Topology page of your dashboard, your URL looks there.
+
+**Context assigned to us**
+
+Our value for {context}. The context is constructed by combining your username with the name of the cluster in the following format: {username}-dev/{cluster_name}/{username}.
+
+For example, using what we have up to this point, the value for {context} would be:
+
+```
+rhn-engineering-dschenck-dev/api-sandbox-x8i5-p1-openshiftapps-com:6443/rhn-engineering-dschenck
+```
+
+Añadimos los siguientes aspectos para la configuración:
+
+```
+kubectl config set-credentials {username}/{cluster_name} --token={token}
+```
+
+```
+kubectl config set-cluster {cluster_name} --server={api_server_url}
+```
+
+```
+kubectl config set-context {context} --user={username}/{cluster_name} --namespace={username}-dev --cluster={cluster_name}
+```
+
+```
+kubectl config use-context {context}
+```
+
+### Step 3: Clone the source code repositories
+
+git clone https://github.com/redhat-developer-demos/quotesweb.git
+
+git clone https://github.com/redhat-developer-demos/quotemysql.git
+
+git clone https://github.com/redhat-developer-demos/qotd-python.git
+
+### Step 4: Create a back-end program called quotes, then set environment variables to be used by the code
+
