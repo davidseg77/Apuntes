@@ -556,3 +556,101 @@ El aprovisionador requiere un nombre de cuenta para autenticarse en la API de Az
 
 El aprovisionador requiere credenciales confidenciales para autenticarse en la API de Azure Files. El aprovisionador recupera credenciales confidenciales de un recurso secreto y, a continuación, las usa para autenticarse en la API de Azure Files.
 
+### Establecer la clase de almacenamiento como la clase de almacenamiento predeterminada.
+
+Inicie sesión como usuario.admin
+
+```
+[student@workstation storage-file]$ oc login -u admin -p redhat
+Login successful.
+
+...output omitted...
+```
+
+Revise la definición de recursos de clase de almacenamiento. Compruebe que la clase de almacenamiento no es la clase de almacenamiento predeterminada.nfs-storagenfs-storage
+
+```
+[student@workstation storage-file]$ oc get storageclass nfs-storage -o yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+  creationTimestamp: "2020-05-28T19:33:31Z"
+...output omitted...
+```
+
+La anotación se establece en un valor de .storageclass.kubernetes.io/is-default-classfalse
+
+Mostrar y revisar el contenido del archivo de revisión.set-default-storageclass.yml
+
+```
+[student@workstation storage-file]$ cat set-default-storageclass.yml
+metadata:
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+```
+
+Utilice el contenido del archivo de revisión para establecer la clase de almacenamiento como la clase de almacenamiento predeterminada.set-default-storageclass.ymlnfs-storage
+
+```
+[student@workstation storage-file]$ oc patch storageclass nfs-storage \
+  -p "$(cat set-default-storageclass.yml)"
+storageclass.storage.k8s.io/nfs-storage patched
+```
+
+Compruebe que la clase de almacenamiento es la clase de almacenamiento predeterminada para el clúster. Compruebe también que solo una clase de almacenamiento está etiquetada como clase de almacenamiento predeterminada.nfs-storage
+
+```
+[student@workstation storage-file]$ oc get storageclasses
+NAME                    PROVISIONER               RECLAIMPOLICY   ...
+nfs-storage (default)   nfs-storage-provisioner   Delete          ...
+```
+
+La clase de almacenamiento es ahora la clase de almacenamiento predeterminada para el clúster.nfs-storage
+
+### Definición de las definiciones de recursos personalizadas de la pila de supervisión de clústeres
+
+El operador de supervisión del clúster implementa y gestiona el ciclo de vida de una pila basada en Prometheus para supervisar el clúster. El operador crea las siguientes cinco definiciones de recursos personalizados (CRD):
+
+Prometheus para implementar instancias de Prometheus. Muestre todas las instancias de recursos mediante el siguiente comando:
+
+```
+[user@host ~]$ oc get prometheuses -A
+```
+
+ServiceMonitor Para administrar archivos de configuración que describen cómo y dónde extraer los datos de los servicios de aplicación. Muestre todas las instancias de recursos mediante el siguiente comando:
+
+```
+[user@host ~]$ oc get servicemonitors -A
+```
+
+PodMonitor Para administrar archivos de configuración para extraer datos de pods. Muestre todas las instancias de recursos mediante el siguiente comando:
+
+```
+[user@host ~]$ oc get podmonitors -A
+```
+
+Alertmanager para implementar y administrar instancias de Alert Manager. Muestre todas las instancias de recursos mediante el siguiente comando:
+
+```
+[user@host ~]$ oc get alertmanagers -A
+```
+
+PrometheusRule para administrar reglas. Las reglas corresponden a un conjunto de consultas, un filtro y cualquier otro campo. Muestre todas las instancias de recursos mediante el siguiente comando:
+
+```
+[user@host ~]$ oc get prometheusrules -A
+```
+
+El mapa de configuración en el espacio de nombres proporciona una vista combinada de todas las reglas de Prometheus.prometheus-k8s-rulefiles-0openshift-monitoring
+
+**Asignación de roles de supervisión de clúster**
+
+Asigne el rol de clúster a un usuario para permitir la visualización de alertas y métricas de clúster. Este rol permite a un usuario ver la sección de la consola web de OpenShift.cluster-monitoring-viewMonitoring
+
+```
+[user@host ~]$ oc adm policy add-cluster-role-to-user \
+  cluster-monitoring-view USER
+```
+
