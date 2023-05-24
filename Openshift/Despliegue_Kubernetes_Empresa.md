@@ -654,3 +654,163 @@ Asigne el rol de clúster a un usuario para permitir la visualización de alerta
   cluster-monitoring-view USER
 ```
 
+### Instalación del operador de Elasticsearch
+
+El operador de Elasticsearch maneja la creación y las actualizaciones del clúster de Elasticsearch definido en el recurso personalizado de registro de clúster. Cada nodo del clúster de Elasticsearch se implementa con un PVC nombrado y administrado por el operador de Elasticsearch. Se crea un objeto único para cada nodo de Elasticsearch para garantizar que cada nodo de Elasticsearch tenga un volumen de almacenamiento propio.Deployment
+
+El operador de Elasticsearch debe instalarse en un espacio de nombres que no sea para evitar posibles conflictos con métricas de otros operadores de la comunidad. Cree y use el espacio de nombres para el operador de Elasticsearch.openshift-operatorsopenshift-operators-redhat
+
+```
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-operators-redhat
+  annotations:
+    openshift.io/node-selector: ""
+  labels:
+    openshift.io/cluster-monitoring: "true"
+```
+
+Cree un objeto para instalar el operador en todos los espacios de nombres y un objeto para suscribir el espacio de nombres al operador.OperatorGroupSubscriptionopenshift-operators-redhat
+
+```
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-operators-redhat
+  namespace: openshift-operators-redhat
+spec: {}
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: "elasticsearch-operator"
+  namespace: "openshift-operators-redhat"
+spec:
+  channel: "4.6"
+  installPlanApproval: "Automatic"
+  source: "redhat-operators"
+  sourceNamespace: "openshift-marketplace"
+  name: "elasticsearch-operator"
+```
+
+Cree los objetos RBAC para conceder permiso a Prometheus para acceder al espacio de nombres.openshift-operators-redhat
+
+```
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: prometheus-k8s
+  namespace: openshift-operators-redhat
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - services
+      - endpoints
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prometheus-k8s
+  namespace: openshift-operators-redhat
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prometheus-k8s
+subjects:
+  - kind: ServiceAccount
+    name: prometheus-k8s
+    namespace: openshift-operators-redhat
+---
+```
+
+Compruebe que el operador está disponible en cada espacio de nombres.
+
+```
+[user@host ~]$ oc get csv -A
+NAMESPACE        NAME                                        ...  PHASE
+default          elasticsearch-operator.4.6.0-202108311008   ...  Succeeded
+kube-node-lease  elasticsearch-operator.4.6.0-202108311008   ...  Succeeded
+kube-public      elasticsearch-operator.4.6.0-202108311008   ...  Succeeded
+kube-system      elasticsearch-operator.4.6.0-202108311008   ...  Succeeded
+...output omitted...
+```
+
+### Instalación del operador de registro de clústeres
+
+El operador de registro de clústeres crea componentes detallados en el recurso personalizado de registro de clúster y actualiza la implementación en función de cualquier cambio en el recurso personalizado. Similar al operador de Elasticsearch, el operador de registro de clúster requiere: espacio de nombres, grupo de operadores y objetos de suscripción.
+
+```
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-logging
+  annotations:
+    openshift.io/node-selector: ""
+  labels:
+    openshift.io/cluster-logging: "true"
+    openshift.io/cluster-monitoring: "true"
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: cluster-logging
+  namespace: openshift-logging
+spec:
+  targetNamespaces:
+    - openshift-logging
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: cluster-logging
+  namespace: openshift-logging
+spec:
+  channel: "4.6"
+  name: cluster-logging
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+---
+```
+
+Confirme la instalación.
+
+```
+[user@host ~]$ oc get csv -n openshift-logging
+NAME                                        ...  PHASE
+clusterlogging.4.6.0-202108311008           ...  Succeeded
+elasticsearch-operator.4.6.0-202108311008   ...  Succeeded
+```
+
+### Examinar los estados de los nodos de trabajo en buen estado
+
+Recuperar estado del nodo:
+
+```
+[user@host ~]$ oc get nodes <NODE>
+```
+
+Obtenga información para un nodo a través de la salida para los procesos que se están ejecutando actualmente:top
+
+```
+[user@host ~]$ oc adm top node <NODE>
+```
+
+Compruebe si hay manchas aplicadas para un nodo:
+
+```
+[user@host ~]$ oc describe node <NODE> | grep -i taint
+```
+
+Además, inspeccione el nodo de trabajo a través de la consola web y los comandos de la CLI para familiarizarse con los estados operativos correctos y dónde encontrar información valiosa, como en la página Supervisión. Puede encontrar un enlace a la consola web de OpenShift para su clúster mediante el comando:
+
+```
+[user@host ~]$ oc whoami --show-console
+```
+
