@@ -43,3 +43,7 @@ TriggerTriggerBindingTriggerTemplateinterceptor
 * ClusterTriggerBinding: un ámbito de clúster TriggerBinding
 El uso junto con le permite cree fácilmente sistemas CI/CD completos donde la ejecución se defina completamente a través de los recursos de Kubernetes.tektoncd/triggerstektoncd/pipeline
 
+### Instalar el operador Openshift Pipelines
+
+A través de OperatorHub.
+
