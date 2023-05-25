@@ -554,6 +554,24 @@ echo "$(oc  get route el-vote-app --template='http://{{.spec.host}}')"
 
 to payload URL > Select Content type as application/json > Add secret eg: 1234567 > Click on Add Webhook
 
+Now we should see a webhook configured on your forked source code repositories (on our GitHub Repo, go to Settings>Webhooks).
+
+### Trigger pipeline Run
+
+When we perform any push event on the backend the following should happen.
+
+* The configured webhook in vote-api GitHub repository should push the event payload to our route (exposed EventListener Service).
+
+* The Event-Listener will pass the event to the TriggerBinding and TriggerTemplate pair.
+
+* TriggerBinding will extract parameters needed for rendering the TriggerTemplate. Successful rendering of TriggerTemplate should create 2 PipelineResources (source-repo-vote-api and image-source-vote-api) and a PipelineRun (build-deploy-vote-api)
+
+We can test this by pushing a commit to vote-api repository from GitHub web ui or from terminal.
+
+Let’s push an empty commit to vote-api repository.
+
+Watch OpenShift WebConsole Developer perspective and a PipelineRun will be automatically created.
+
 
 
 
