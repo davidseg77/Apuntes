@@ -184,3 +184,7 @@ http://localhost:9080/cli/
 **wait-node-online**	Esperando hasta que el nodo esté activado
 
 **who-am-i**	Muestra tus credenciales y permisos
+
+### Plugins
+
+Importante instalar el Role-based Authorization Strategy
