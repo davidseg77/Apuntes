@@ -188,3 +188,41 @@ http://localhost:9080/cli/
 ### Plugins
 
 Importante instalar el Role-based Authorization Strategy
+
+### Crear job
+
+En el apartado general, podemos especificar todo aquello que queremos insertar en nuestra tarea. Por ejemplo, uso de comandos, o bien parámetros, o combinar todo esto...
+
+**Crear job con Maven**
+
+Creada la tarea, en general, en la sección de ejecutar podemos hacer uso de comandos maven. 
+
+Para instalar maven en nuestro contenedor, hacemos uso del siguiente comando:
+
+```
+docker exec -it -u root jenkins /bin/bash -c "apt update; apt install maven -y" 
+```
+
+También podemos instalar el plugin Maven Integration. Hecho esto, en global tool configuration abajo del todo tenemos la opción de añadir Maven y darle un nombre (por ej, MAVEN_HOME). Si creamos una tarea, nos aparecerá la opción **crear un proyecto Maven**. 
+
+### Crear jobs anidados
+
+Crear las tareas a anidar. Después, vamos en orden configurando cada tarea. La segunda tarea, vamos a Disparadores de ejecuciones e indicamos que queremos construir detrás de otro proyecto. Dentro de esta segunda tarea, bajamos y añadimos en Ejecutar que queremos ejecutar otros proyectos. 
+
+### Crons
+
+Para nomenclaturas de crontabs, es recomendable visitar la web **crontab guru**.  
+
+Un cron en Jenkins se añade en el campo Ejecutar periodicamente, dentro de Disparador de Ejecuciones. 
+
+### Analizar y recopilar info mediante Jenkins
+
+Creada la tarea con Maven, en Proyecto, además de añadir Clean Package, hacemos lo propio con checkstyle:checkstyle para recopilar la info analizada del repositorio indicado. Abajo del todo, agregamos una acción, guardar los archivos generados. Es decir, vamos a guardar la info recopilada, en este caso todos los archivos de extensión .war 
+
+```
+**/*.war
+```
+
+
+
+
