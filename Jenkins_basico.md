@@ -223,6 +223,10 @@ Creada la tarea con Maven, en Proyecto, además de añadir Clean Package, hacemo
 **/*.war
 ```
 
+### Creación de una pipeline
+
+
+
 
 
 
