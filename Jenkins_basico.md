@@ -225,6 +225,121 @@ Creada la tarea con Maven, en Proyecto, además de añadir Clean Package, hacemo
 
 ### Creación de una pipeline
 
+Creamos tarea en modo pipeline. Bajamos hasta el apartado Pipeline, donde podemos desplegar, por ejemplo, la opción Git + Maven como la escogida para el diseño de nuestra pipeline. 
+
+Podemos crearlo también añadiendo la forma simple de texto plano para crear la misma pipeline. El código sería el siguiente, eso sí, deja bloqueada la fase de ejecución:
+
+```
+pipeline {
+agent any
+
+tools {
+// Install the Maven version configured as "M3" and add it to the path.
+maven "MAVEN_HOME"
+}
+
+stages {
+stage('Construccion') {
+steps {
+// Get some code from a GitHub repository
+git branch: 'main', url: "https://github.com/spring-guides/gs-spring-boot.git"
+// git 'https://github.com/spring-guides/gs-spring-boot.git'
+
+// Run Maven on a Unix agent.
+echo 'Construimos.....'
+sh "mvn clean package -DskipTests=true -f complete/pom.xml"
+}
+
+post {
+// If Maven was able to run the tests, even if some of the test
+// failed, record the test results and archive the jar file.
+success {
+archiveArtifacts 'complete/target/*.jar'
+}
+}
+}
+
+stage('Pruebas') {
+steps {
+echo 'Testeo.....'
+sh "mvn test -f complete/pom.xml"
+}
+}
+
+stage('Despliegue') {
+steps {
+echo 'Despliegue.....'
+sh "mvn spring-boot:run -f complete/pom.xml"
+}
+}
+}
+}
+```
+
+Ahora vamos a crear una pipeline que nos lanza el servidor y cuando la pipeline termina el servidor se detiene. Con esto, evitamos la problemática de la pipeline anterior.
+
+```
+pipeline {
+agent any
+
+tools {
+// Install the Maven version configured as "M3" and add it to the path.
+maven "MAVEN_HOME"
+}
+
+stages {
+stage('Construccion') {
+steps {
+// Get some code from a GitHub repository
+git branch: 'main', url: "https://github.com/spring-guides/gs-spring-boot.git"
+// git 'https://github.com/spring-guides/gs-spring-boot.git'
+
+// Run Maven on a Unix agent.
+echo 'Construimos.....'
+sh "mvn clean package -DskipTests=true -f complete/pom.xml"
+}
+
+post {
+// If Maven was able to run the tests, even if some of the test
+// failed, record the test results and archive the jar file.
+success {
+archiveArtifacts 'complete/target/*.jar'
+}
+}
+}
+
+stage('Pruebas') {
+steps {
+echo 'Testeo.....'
+sh "mvn test -f complete/pom.xml"
+}
+}
+
+stage('Despliegue') {
+steps {
+echo 'Despliegue.....'
+script {
+    withEnv(['JENKINS_NODE_COOKIE=dontkill']) {
+        sh "nohup mvn spring-boot:run -f complete/pom.xml &"
+    }
+}
+}
+}
+}
+}
+```
+
+Hecha la pipeline, creamos un job bajo proyecto de estilo libre al que añadimos un script shell.
+
+```
+kill $(ps aux | grep '[.m2]/' | awk 'END {print $2}')
+```
+
+Otra opcion, en caso de que el contenedor de jenkins ya no contara con el comando ps:
+
+```
+kill $(jps -m | grep Launcher | awk '{print $1}')
+```
 
 
 
