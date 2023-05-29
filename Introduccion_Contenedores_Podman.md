@@ -406,6 +406,71 @@ ENTRYPOINT especifica el comando predeterminado para ejecutarse cuando se ejecut
 
 CMD proporciona los argumentos predeterminados para la instrucción ENTRYPOINT.
 
+### Montaje de volúmenes
+
+**Almacenamiento de datos con montajes de enlace**
+
+Los montajes de enlace pueden existir en cualquier lugar del sistema host.
+
+Por ejemplo, para montar el directorio /www de su máquina host en el directorio /var/www/html dentro del contenedor con la opción de solo lectura, use el siguiente comando podman-run:
+
+```
+[user@host ~] $ podman run -p 8080:8080 --volume  /www:/var/www/html:ro \
+  registry.access.redhat.com/ubi8/httpd-24:latest
+```
+
+**Almacenamiento de datos con volúmenes**
+
+Los volúmenes permiten que Podman gestione los montajes de datos. Puede gestionar volúmenes mediante el comando podman-volume.
+
+Para crear un nuevo volumen llamado http-data, use el siguiente comando:
+
+```
+[user@host ~] $ podman volume create http-data
+d721d941960a2552459637da86c3074bbba12600079f5d58e62a11caf6a591b5
+```
+
+Puede inspeccionar el volumen con el comando podman-volume-inspect:
+
+```
+[user@host ~] $ podman volume inspect http-data
+```
+
+Para los contenedores sin root, Podman almacena los datos del volumen local en el directorio $HOME/.local/share/containers/storage/volumes/.
+
+Para montar el volumen en un contenedor, consulte el volumen por el nombre del volumen:
+
+```
+[user@host ~] $ podman run -p 8080:8080 --volume  http-data:/var/www/html \
+  registry.access.redhat.com/ubi8/httpd-24:latest
+```
+
+**Importación de datos con volúmenes**
+
+Puede importar datos de un archivo tar a un volumen Podman existente mediante el comando podman volume import VOLUME NAME TAR_ARCHIVE.
+
+```
+[user@host ~] $ podman volume import http_data web_data.tar.gz
+```
+
+También puede exportar datos de un volumen Podman existente y guardarlo como un archivo tar en la máquina local mediante el comando podman export VOLUME NAME --output ARCHIVE_NAME.
+
+```
+[user@host ~] $ podman volume export http_data --output web_data.tar.gz
+```
+
+**Almacenamiento de datos con un montaje tmpfs**
+
+Algunas aplicaciones no pueden usar el sistema de archivos COW predeterminado en un directorio específico por razones de rendimiento, pero los desarrolladores no usan la persistencia o el uso compartido de datos para ese directorio.
+
+Para tales casos, puede usar el tipo de montaje tmpfs, lo que significa que los datos en un montaje son efímeros pero no usan el sistema de archivos COW:
+
+```
+[user@host ~] $ podman run -e POSTGRESQL_ADMIN_PASSWORD=redhat --network lab-net \
+  --mount  type=tmpfs,tmpfs-size=512M,destination=/var/lib/pgsql/data \
+  registry.redhat.io/rhel9/postgresql-13:1
+```
+
 
 
 

@@ -341,7 +341,24 @@ Otra opcion, en caso de que el contenedor de jenkins ya no contara con el comand
 kill $(jps -m | grep Launcher | awk '{print $1}')
 ```
 
+### Herramientas Jenkins
 
+**CatLight**
+
+Monitorea los jobs o pipelines. Facil de instalar y usar.
+
+**Notificación por email**
+
+En Configuración, bajamos hasta notificación por correo electrónico.
+
+En servidor de correo saliente: smtp.gmail.com
+El sufijo: @gmail.com
+
+En opciones avanzadas activamos la seguridad SSL, añadimos el puerto 465 y la dirección de email deseada.
+
+Puede haber error, para ello debemos ir a la url de google y permitir el acceso no seguro.
+
+Para que el resultado de un job o pipeline nos sea enviado 
 
 
 
