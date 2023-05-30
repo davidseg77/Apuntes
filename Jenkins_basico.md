@@ -347,7 +347,7 @@ kill $(jps -m | grep Launcher | awk '{print $1}')
 
 Monitorea los jobs o pipelines. Facil de instalar y usar.
 
-**Notificación por email**
+### Notificación por email
 
 En Configuración, bajamos hasta notificación por correo electrónico.
 
@@ -358,7 +358,22 @@ En opciones avanzadas activamos la seguridad SSL, añadimos el puerto 465 y la d
 
 Puede haber error, para ello debemos ir a la url de google y permitir el acceso no seguro.
 
-Para que el resultado de un job o pipeline nos sea enviado 
+Para que el resultado de un job o pipeline nos sea enviado, nos vamos abajo en configuración, al apartado acciones para ejecutar después. Ahí indicamos que nos notifiquen por email.
+
+### Home Backup
+
+Creamos una tarea para hacer lo siguiente:
+
+* En Administrar Jenkins, en Configuración del sistema, tenemos el directorio raíz. Lo copiamos.
+* En la tarea creada, en ejecutar por comando, insertamos lo siguiente:
+    - export JENKINS_HOME=/var/jenkins_home (directorio raíz)
+    - rm -rf $JENKINS_HOME/backups
+    - mkdir $JENKINS_HOME/backups
+    - tar -zcvf $JENKINS_HOME/backups/backup_jenkins_home.tar.gz exclude='$JENKINS_HOME/backups' $JENKINS_HOME | true
+
+
+
+
 
 
 
