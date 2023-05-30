@@ -471,6 +471,580 @@ Para tales casos, puede usar el tipo de montaje tmpfs, lo que significa que los 
   registry.redhat.io/rhel9/postgresql-13:1
 ```
 
+### Registro de contenedores y solución de problemas
 
+**Solucionar problemas de inicio de contenedores**
 
+Si el contenedor está en el estado Exited, entonces el problema podría estar en el proceso de inicio. Muchas aplicaciones muestran información de error cuando encuentran un problema durante el inicio. Para acceder a esta información, puede usar el comando podman logs.
+
+```
+[user@host ~]$ podman logs CONTAINER
+```
+
+Puede usar el comando podman port CONTAINER para enumerar el mapeo de puertos del contenedor actual.
+
+```
+[user@host ~]$ podman port CONTAINER
+```
+
+Para verificar los puertos de la aplicación en uso, enumere los puertos de red abiertos en el contenedor en ejecución. Use comandos de Linux como el comando de estadísticas de socket (ss) para enumerar los puertos abiertos. Un socket es la combinación de un puerto y una dirección IP. El comando ss enumera los sockets abiertos en un sistema. Puede proporcionar opciones al comando ss para filtrar y producir la salida deseada:
+
+-p: mostrar el proceso usando el socket
+
+-a: mostrar la escucha y las conexiones establecidas
+
+-n: mostrar las direcciones IP
+
+-t: mostrar sockets TCP
+
+```
+[user@host ~]$ podman exec -it CONTAINER ss -pant
+```
+
+Para obtener el PID del contenedor, puede usar el siguiente comando podman inspect:
+
+```
+[user@host ~]$ podman inspect CONTAINER --format '{{.State.Pid}}'
+```
+
+Tenga en cuenta que debe anteponer el comando nsenter con el comando sudo para otorgarle los permisos necesarios.
+
+```
+[user@host ~]$ sudo nsenter -n -t CONTAINER_PID ss -pant
+```
+
+**Problemas de conectividad de la red de contenedores**
+
+Puede usar el comando podman inspect para verificar que cada contenedor esté usando una red específica.
+
+```
+[user@host ~]$ podman inspect CONTAINER --format='{{.NetworkSettings.Networks}}'
+```
+
+**Problemas de resolución de nombre**
+
+Para asegurarse de que el DNS esté habilitado para una red Podman, use el comando podman nework inspect.
+
+```
+[user@host ~]$ podman network inspect NETWORK
+```
+
+**Solucionar problemas de montajes de enlace**
+
+Al usar montajes de enlace, debe configurar los permisos de archivo y el acceso a SELinux manualmente. SELinux es un mecanismo de seguridad adicional usado por Red Hat Enterprise Linux (RHEL) y otras distribuciones de Linux.
+
+Considere el siguiente ejemplo de montaje de enlace:
+
+```
+[user@host ~]$ podman run -p 8080:8080 --volume /www:/var/www/html \
+  registry.access.redhat.com/ubi8/httpd-24:latest
+```
+
+Para solucionar problemas de permisos de archivos, use el comando podman unshare para ejecutar el comando ls -l. El comando podman unshare ejecuta los comandos de Linux proporcionados en un nuevo espacio de nombres, como el que crea Podman para el contenedor. Esto mapea los ID de usuario a medida que se mapean en un nuevo contenedor, lo cual es útil para solucionar problemas de permisos de usuario.
+
+```
+[user@host ~]$ podman unshare ls -l /www/
+```
+
+Para solucionar problemas de permisos de SELinux, inspeccione la configuración de SELinux del directorio /www ejecutando el comando ls con la opción -Z. Use la opción -d para imprimir solo la información del directorio.
+
+```
+[user@host ~]$ ls -Zd /www
+```
+
+Para corregir la configuración de SELinux, agregue la opción :z o :Z al montaje de enlace:
+
+La z minúscula permite que diferentes contenedores compartan el acceso a un montaje de enlace.
+
+La Z mayúsculas proporciona al contenedor acceso exclusivo al montaje de enlace.
+
+```
+[user@host ~]$ podman run -p 8080:8080 --volume /www:/var/www/html:Z \
+  registry.access.redhat.com/ubi8/httpd-24:latest
+```
+
+Después de agregar la opción correspondiente, ejecute el comando ls -Zd y observe el tipo de SELinux correcto.
+
+```
+[user@host ~]$ ls -Zd /www
+```
+
+### Descripción general y casos de uso de Compose
+
+**Orqueste contenedores con Podman Compose**
+
+Podman Compose es una herramienta de código abierto que puede usar para ejecutar archivos Compose. Un archivo Compose es un archivo YAML que especifica los contenedores que se deben gestionar, así como las dependencias entre ellos.
+
+Por ejemplo, considere el siguiente archivo Compose:
+
+```
+version: '3'
+services:
+  orders: 1
+    image: quay.io/user/python-app 2
+    ports:
+    - 3030:8080 3
+    environment:
+      ACCOUNTS_SERVICE: http://accounts 4
+```
+
+1
+
+Declare el contenedor orders.
+
+2
+
+Use la imagen de contenedor python-app.
+
+3
+
+Vincule el puerto 3030 en su máquina host al puerto 8080 en el contenedor.
+
+4
+
+Pase la variable de entorno ACCOUNTS_SERVICE a la aplicación.
+
+--------------------------------------------------------------------------------------------------------------------
+**Importante**
+
+No se recomienda usar Podman Compose en un entorno de producción. Podman Compose no soporta funciones avanzadas que pueda necesitar en un entorno de producción, como el balanceo de carga, la distribución de contenedores a varios nodos, la gestión de contenedores en diferentes nodos y otros.
+
+Si necesita una solución de orquestación de contenedores de producción, Kubernetes o Red Hat OpenShift es una mejor opción. Red Hat OpenShift puede ejecutar aplicaciones de varios contenedores en diferentes máquinas host o nodos.
+--------------------------------------------------------------------------------------------------------------------
+
+El siguiente archivo Compose define los servicios backend y db. Los términos servicio y contenedor se usan indistintamente. También anula el comando predeterminado para la imagen de back end al especificar la propiedad command.
+
+```
+version: "3.9"
+services:
+  backend:
+    image: quay.io/user/backend
+    ports:
+      - "8081:8080"
+    command: sh -c "COMMAND"
+  db:
+    image: registry.redhat.io/rhel8/postgresql-13
+    environment:
+      POSTGRESQL_ADMIN_PASSWORD: redhat
+```
+
+**Iniciar y detener contenedores con Podman Compose**
+
+Puede ejecutar un archivo Compose mediante el comando podman-compose up, que crea objetos que se definen en el archivo Compose e inicia los contenedores.
+
+```
+[user@host ~]$ podman-compose up
+```
+
+Puede enumerar los objetos que están definidos en el archivo Compose usando el comando podman, como podman network ls, para enumerar las redes Podman.
+
+```
+[user@host ~]$ podman network ls
+```
+
+El comando podman-compose stop detiene la ejecución de contenedores definidos como servicios. Ejecute podman-compose down para detener y eliminar contenedores que se definen como servicios:
+
+```
+[user@host ~]$ podman-compose down
+```
+
+**Redes**
+
+Use la palabra clave networks en el mismo nivel de sangría que la palabra clave services para crear y usar redes Podman. Si la palabra clave networks no está definida en el archivo Podman Compose, Podman Compose crea una red predeterminada que tiene el DNS habilitado.
+
+Considere el siguiente archivo Compose que declara tres contenedores: una aplicación front end, una aplicación back end y una base de datos.
+
+```
+version: "3.9"
+services:
+  frontend:
+    image: quay.io/user/frontend
+    networks: 1
+      - app-net
+    ports:
+      - "8082:8080"
+  backend:
+    image: quay.io/user/backend
+    networks: 2
+      - app-net
+      - db-net
+  db:
+    image: registry.redhat.io/rhel8/postgresql-13
+    environment:
+      POSTGRESQL_ADMIN_PASSWORD: redhat
+    networks: 3
+      - db-net
+
+networks: 4
+  app-net: {}
+  db-net: {}
+```
+
+1
+
+El servicio frontend es parte de la red app-net.
+
+2
+
+El servicio backend es parte de las redes app-net y db-net.
+
+3
+
+El servicio db es parte de db-net.
+
+4
+
+Definición de las redes.
+
+**Volúmenes**
+
+Puede declarar volúmenes con la palabra clave volumes. Luego, monte los volúmenes en contenedores con la sintaxis VOLUME_NAME:_CONTAINER_DIRECTORY_:_OPTIONS_.
+
+```
+version: "3.9"
+services:
+  db:
+    image: registry.redhat.io/rhel8/postgresql-13
+    environment:
+      POSTGRESQL_ADMIN_PASSWORD: redhat
+    ports:
+      - "5432:5432"
+    volumes: 1
+      - db-vol:/var/lib/postgresql/data
+
+volumes: 2
+  db-vol: {}
+```
+
+1
+
+El servicio db asigna el volumen db-vol al directorio /var/lib/postgresql/data dentro del contenedor.
+
+2
+
+Declaración de volúmenes.
+
+### Implementar aplicaciones en OpenShift
+
+**Crear pods de forma declarativa**
+
+El siguiente objeto YAML demuestra los campos importantes de un objeto de pod:
+
+```
+kind: Pod 1
+apiVersion: v1
+metadata:
+  name: example-pod 2
+  namespace: example-project 3
+spec: 4
+  containers: 5
+  - name: example-container 6
+    image: quay.io/example/awesome-container 7
+    ports: 8
+    - containerPort: 8080
+    env: 9
+    - name: GREETING
+      value: "Hello from the awesome container"
+```
+
+1
+
+Este objeto YAML define un pod.
+
+2
+
+El campo .metadata.name define el nombre del pod.
+
+3
+
+El proyecto en el que crea el pod. Si este proyecto no existe, falla la creación del pod. Si no especifica un proyecto, RHOCP usa el proyecto configurado actualmente.
+
+4
+
+El campo .spec contiene la configuración del objeto del pod.
+
+5
+
+El campo .spec.containers define los contenedores en un pod. En este ejemplo, example-pod contiene un contenedor.
+
+6
+
+Nombre del contenedor dentro de un pod. Los nombres de los contenedores son importantes para los comandos oc cuando un pod contiene varios contenedores.
+
+7
+
+La imagen del contenedor.
+
+8
+
+Los metadatos del puerto especifican qué puertos usa el contenedor. Esta propiedad es similar a la propiedad de Containerfile EXPOSE.
+
+9
+
+La propiedad env define variables de entorno.
+
+**Crear pods de forma imperativa**
+
+Para fines de prueba, RHOCP también proporciona el enfoque imperativo para crear objetos RHOCP. El enfoque imperativo usa el comando oc run para crear un pod sin una definición.
+
+El siguiente comando crea el pod example-pod :
+
+```
+[user@host ~]$ oc run example-pod \ 1
+  --image=quay.io/example/awesome-container \ 2
+  --env GREETING='Hello from the awesome container' \ 3
+  --port=8080 4
+pod/example-pod created
+```
+
+1
+
+La definición de pod .metadata.name.
+
+2
+
+La imagen usada para el contenedor único en este pod.
+
+3
+
+La variable de entorno para el contenedor único en este pod.
+
+4
+
+La definición de metadatos del puerto.
+
+El siguiente comando es un ejemplo de cómo generar la definición YAML para el pod example-pod.
+
+```
+[user@host ~]$ oc run example-pod \
+  --image=quay.io/example/awesome-container \
+  --env GREETING='Hello from the awesome container' \
+  --port=8080 \
+  --dry-run=client -o yaml
+```
+
+**Crear servicios de forma declarativa**
+
+El siguiente objeto YAML muestra un objeto de servicio:
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+spec:
+  ports:
+  - port: 8080 1
+    protocol: TCP
+    targetPort: 8080 2
+  selector: 3
+    app: backend-app
+```
+
+1
+
+Puerto de servicio. Este es el puerto en el que escucha el servicio.
+
+2
+
+Puerto de destino. Este es el puerto del pod al que el servicio enruta las solicitudes. Este puerto corresponde al valor containerPort en la definición de pod.
+
+3
+
+El selector configura a qué pods apuntar. En este caso, el servicio se enruta a cualquier pod que contenga la etiqueta app=backend-app.
+
+**Crear servicios de forma imperativa**
+
+De manera similar a los pods, puede crear servicios de manera imperativa mediante el comando oc expose. El siguiente ejemplo crea un servicio para el pod backend-app :
+
+```
+[user@host ~]$ oc expose pod backend-app \
+  --port=8080 \ 1
+  --targetPort=8080 \ 2
+  --name=backend-app 3
+service/backend-app exposed
+```
+
+1
+
+El puerto en el que escucha el servicio.
+
+2
+
+Puerto de contenedores de destino.
+
+3
+
+Nombre del servicio
+
+También puede usar las opciones --dry-run=client y -o para generar una definición de servicio, por ejemplo:
+
+```
+[user@host ~]$ oc expose pod backend-app \
+  --port=8080 \
+  --targetPort=8080 \
+  --name=backend-app \
+  --dry-run=client -o yaml
+```
+
+### Aplicaciones de varios pods
+
+**Crear implementaciones de forma declarativa**
+
+El siguiente objeto YAML demuestra una implementación de Kubernetes:
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata: 1
+  labels:
+    app: deployment-label
+  name: example-deployment
+spec:
+  replicas: 3 2
+  selector: 3
+    matchLabels:
+      app: example-deployment
+  strategy: RollingUpdate 4
+  template: 5
+    metadata:
+      labels:
+        app: example-deployment
+    spec: 6
+      containers:
+      - image: quay.io/example/awesome-container
+        name: awesome-pod
+```
+
+1
+
+Metadatos del objeto de implementación. Esta implementación usa la etiqueta app=deployment-label.
+
+2
+
+Cantidad de réplicas del pod. Esta implementación mantiene 3 contenedores idénticos en 3 pods.
+
+3
+
+Selector de pods que gestiona la implementación. Esta implementación gestiona pods que usan la etiqueta app=example-deployment.
+
+4
+
+Estrategia de actualización de pods. La estrategia RollingUpdate predeterminada garantiza la implementación gradual del pod sin tiempo de inactividad cuando modifica la imagen del contenedor.
+
+5
+
+La configuración de la plantilla para los pods que crea y gestiona la implementación.
+
+6
+
+El campo .spec.template.spec corresponde al campo .spec del objeto Pod.
+
+**Crear implementaciones de forma imperativa**
+
+Puede usar el comando oc create deployment para crear una implementación.
+
+```
+[user@host ~]$ oc create deployment example-deployment \ 1
+  --image=quay.io/example/awesome-container \ 2
+  --replicas=3 3
+deployment/example-deployment created
+```
+
+1
+
+Establezca el nombre en example-deployment.
+
+2
+
+Defina la imagen.
+
+3
+
+Cree y mantenga 3 pods de réplica.
+
+También puede usar las opciones --dry-run=client y -o para generar una definición de implementación, por ejemplo:
+
+```
+[user@host ~]$ oc create deployment example-deployment \
+  --image=quay.io/example/awesome-container \
+  --replicas=3 \
+  --dry-run=client -o yaml
+```
+
+**Selección de pod de implementación**
+
+Los controladores crean y administran el ciclo de vida de los pods que se especifican en la configuración del controlador. En consecuencia, un controlador debe tener una relación de propiedad entre los pods y un pod puede ser propiedad de un controlador como máximo.
+
+El controlador de implementación usa etiquetas para apuntar a los pods dependientes. Por ejemplo, considere la siguiente configuración de implementación:
+
+```
+apiVersion: apps/v1
+kind: Deployment
+...configuration omitted...
+spec:
+  selector:
+    matchLabels: 1
+      app: example-deployment
+  template:
+    metadata:
+      labels: 2
+        app: example-deployment
+    spec:
+...configuration omitted...
+```
+
+1
+
+El campo .spec.selector.matchLabels.
+
+2
+
+El campo .spec.template.metadata.labels.
+
+El campo .spec.template.metadata.labels determina el conjunto de etiquetas aplicadas a los pods creados o administrados por esta implementación. En consecuencia, el campo .spec.selector.matchLabels debe ser un subconjunto de etiquetas del campo .spec.template.metadata.labels.
+
+**Crear rutas de forma declarativa**
+
+El siguiente objeto YAML demuestra una ruta de RHOP:
+
+```
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  labels:
+    app: app-ui
+  name: app-ui
+  namespace: awesome-app
+spec:
+  port:
+    targetPort: 8080 1
+  host: ""
+  to: 2
+    kind: "Service"
+    name: "app-ui"
+```
+
+1
+
+El puerto de destino en los pods seleccionados por el servicio al que apunta esta ruta. Si usa una cadena, la ruta usa un puerto con nombre en la lista de puertos de los extremos (endpoints) de destino.
+
+2
+
+El destino de la ruta. Actualmente, solo se permite el destino Service.
+
+**Crear rutas de forma imperativa**
+
+Puede usar el comando oc expose service para crear una ruta:
+
+```
+[user@host ~]$ oc expose service app-ui
+```
+
+También puede usar las opciones --dry-run=client y -o para generar una definición de ruta, por ejemplo:
+
+```
+[user@host ~]$ oc expose service app-ui \
+  --dry-run=client -o yaml
+```
 
