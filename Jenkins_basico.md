@@ -371,6 +371,58 @@ Creamos una tarea para hacer lo siguiente:
     - mkdir $JENKINS_HOME/backups
     - tar -zcvf $JENKINS_HOME/backups/backup_jenkins_home.tar.gz exclude='$JENKINS_HOME/backups' $JENKINS_HOME | true
 
+### Herramientas para exprimir nuestro código
+
+**Oxygen**
+
+Para instalarlo
+
+```
+sudo apt install doxygen graphviz dot2tex
+```
+
+Para buscar los archivos sobre los que actuar dentro del directorio
+
+```
+doxygen 
+```
+
+Crea dos archivos: html y latex.
+
+Utilizamos el módulo http-server de python para exportar la carpeta
+html en el puerto 8888 de la máquina virtual usando un servidor web:
+
+```
+python3 -m http.server 8888 --directory html
+```
+
+Apunta el navegador a la dirección http://192.169.1.153:8888 (acuérdate de cambiar
+la dirección IP y poner la de tu máquina) y podrás navegar por la documentación generada con DOxygen.
+
+**Plugin HTML Publisher**
+
+Es un plugin dentro de Jenkins que permite mostrar la documentación de una pipeline.
+
+Si creo un archivo de tipo pipeline y lo subo a mi repositorio, con Jenkins puedo subirlo como tarea y al lanzarlo me mostrará la documentación generada por este plugin.
+
+**Pipeline Syntax**
+
+Snippet Generator: Dentro podremos escoger la opción archive artifacts. Lo indicamos con un nombre para el artefacto, por ejemplo, documentation.zip, el cual deberemos añadir en uno de los pasos del archivo pipeline con este comando:
+
+```
+sh "zip documentation.zip -r html/*"
+```
+
+Y en el apartado post del archivo pipeline, añadimos en success lo siguiente:
+
+```
+archive 'documentation.zip'
+```
+
+Se comitean estos cambios y en Jenkins lo indicamos en la configuración (lo del artefacto) y volvemos a construir.
+
+
+
 
 
 
