@@ -421,6 +421,52 @@ archive 'documentation.zip'
 
 Se comitean estos cambios y en Jenkins lo indicamos en la configuración (lo del artefacto) y volvemos a construir.
 
+### Herramientas para analizar nuestro código
+
+**cppcheck**
+
+Para instalarlo:
+
+```
+sudo apt install cppcheck
+```
+
+Para ejecutarlo:
+
+```
+cppcheck *.c --enable=all --inconclusive --language=c *.c <>
+```
+
+Para ejecutarlo en Jenkins, primero habremos de generar un informe. 
+
+```
+cppcheck *.c --xml --xml-version=2 --enable=all --inconclusive --language=c *.c 2>reports/cppcheck/report.xml
+```
+
+Junto al código se facilitan dos tareas de make para ejecutar cpp-check
+
+* make cppcheck
+* make cppcheck-xml
+
+Para hacer uso de él en Jenkins, nos vamos al apartado de Plugins y primero instalamos Warnings Next Generation. Hecho esto, dentro de la pipeline en cuestión, en Pipeline Syntax, marcamos la opción recordissues.
+
+En Tool desplegamos cppcheck y añadimos la ruta donde se encuentra el archivo de cppcheck. En este caso del curso sería reports/cppcheck/*.xml
+
+Cuando demos a ejecutar, se nos generará un script pipeline que tendremos que copiar.
+
+Por ende, volvemos a la terminal y editamos el Jenkinsfile para añadir un nuevo paso, el encargado de analizar el código.
+
+Dentro de ese paso añadimos dos líneas:
+
+```
+sh 'make cppcheck-xml'
+Aquí se copia el script generado anteriormente
+```
+
+Se comitean los cambios y si volvemos a Jenkins consola web y construimos la pipeline, nos aparecerá a la izquierda el apartado Warnings. 
+
+Podría haber un error con el directorio report al no encontrarse en el repo. Para ello se crearían con git add -f.
+
 
 
 
