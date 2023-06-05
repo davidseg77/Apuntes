@@ -467,6 +467,71 @@ Se comitean los cambios y si volvemos a Jenkins consola web y construimos la pip
 
 Podría haber un error con el directorio report al no encontrarse en el repo. Para ello se crearían con git add -f.
 
+### Herramientas para hacer testing automatizado
+
+**Mocka**
+
+Instalación
+
+```
+sudo apt install libcmocka0 libcmocka-dev
+```
+
+Ejecución
+
+```
+gcc tests/test_is_armstrong_number.c armstrong.o stack.o -lm -lcmocka -o tests/build/test_is_armstrong_number CMOCKA_MESSAGE_OUTPUT=stdout CMOCKA_XML_FILE='' ./tests/build/test_is_armstrong_number
+```
+
+Generación de informe XML (junit)
+
+```
+gcc tests/test_is_armstrong_number.c armstrong.o stack.o -lm -lcmocka -o tests/build/test_is_armstrong_number CMOCKA_XML_FILE=reports/cmocka/%g.xml CMOCKA_MESSAGE_OUTPUT=xml ./tests/build/test_is_armstrong_number
+```
+
+Makefile
+
+Junto al código se facilitan dos tareas de make para ejecutar los tests
+y generar el informe:
+
+* make tests
+* make tests-xml
+
+**Pipeline Syntax**
+
+Snippet Generator: Dentro podremos escoger la opción junit: Archive junit-formatted test results. En test reports xml, incluimos la ruta: tests/cmocka/*.xml y generamos el pipeline script.
+
+Igualmente, debemos añadir este paso en el script dentro de su correspondiente fase:
+
+```
+stage('test'){
+    steps {
+        sh 'make tests-xml'
+        junit 'reports/cmocka/*.xml'
+    }
+}
+```
+
+Podría haber un error al comitear con el directorio build al no encontrarse en el repo. Para ello se crearían con git add -f.
+
+```
+git add -f tests/build/.keep
+```
+
+Se comitean los cambios y si volvemos a Jenkins consola web y construimos la pipeline, nos aparecerá a la izquierda el apartado Test Result.
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
