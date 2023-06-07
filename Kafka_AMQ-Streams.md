@@ -250,3 +250,327 @@ Los parámetros quarkus.kafka-streams.application-id y quarkus.kafka-streams.boo
 
 El parámetro quarkus.kafka-streams.topics es obligatorio y evita que Quarkus arranque el motor de Kafka Streams si alguno de los tópicos de Kafka especificados no está listo.
 
+### Configuración del clúster de Kafka Connect
+
+En AMQ Streams en Red Hat OpenShift Container Platform (RHOCP), los clústeres de Kafka Connect se configuran usando el recurso personalizado KafkaConnect. La siguiente definición de YAML es un ejemplo básico de una configuración de clúster de Kafka Connect con dos réplicas.
+
+```
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnect 1
+metadata:
+  annotations:
+    strimzi.io/use-connector-resources: 'true' 2
+  name: my-connect-cluster 3
+spec:
+  bootstrapServers: 'my-cluster-kafka-bootstrap:9092' 4
+  image: 'quay.io/redhattraining/connect-cluster:latest' 5
+  config: 6
+    config.storage.topic: my-connect-cluster-configs 7
+    offset.storage.topic: my-connect-cluster-offsets 8
+    status.storage.topic: my-connect-cluster-status 9
+    config.storage.replication.factor: 1
+    offset.storage.replication.factor: 1
+    status.storage.replication.factor: 1
+  replicas: 2 10
+  version: 2.8.0 11
+```
+
+1
+
+Nombre del recurso de Kafka Connect que gestiona el operador de AMQ Streams.
+
+2
+
+Active el escaneo de recursos de KafkaConnector y cree conectores sin usar la API de REST.
+
+3
+
+Nombre del clúster de Kafka Connect.
+
+4
+
+Dirección bootstrap del clúster de Kafka a la que se conecta el clúster de Kafka Connect.
+
+5
+
+Dirección de registro para la imagen personalizada de Kafka Connect. AMQ Streams crea esta imagen y la envía al registro.
+
+6
+
+Configuraciones para el clúster de Kafka Connect.
+
+7
+
+El tópico en el que se almacenará el estado del conector y de la configuración de la tarea.
+
+8
+
+El tópico en el que se almacenará el estado de la compensación del conector.
+
+9
+
+El tópico en el que se almacenarán las actualizaciones de estado para los conectores y las tareas
+
+10
+
+conteo de réplicas para el clúster de Kafka Connect.
+
+11
+
+Versión de Kafka que se usa en el clúster de Kafka Connect.
+
+La creación manual de una imagen no es la única forma de crear un clúster de Kafka Connect. Tiene dos opciones para preparar una imagen de clúster de Kafka Connect:
+
+* Crear manualmente una imagen.
+
+* Usar el operador AMQ Streams para crear la imagen.
+
+### Creación de una imagen de clúster con el operador AMQ Streams
+
+Para hacer que AMQ Streams cree una imagen, debe definir el valor KafkaConnect.spec.build en lugar de KafkaConnect.spec.image. La siguiente configuración de YAML es un ejemplo de un recurso de clúster KafkaConnect que está configurado para crear las imágenes en RHOCP.
+
+```
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnect
+metadata:
+  annotations:
+    strimzi.io/use-connector-resources: 'true'
+  name: my-connect-cluster
+spec:
+  bootstrapServers: my-cluster-kafka-bootstrap:9092
+  build: 1
+    output: 2
+      image: quay.io/redhattraining/connect-cluster:latest 3
+      pushSecret: my-connect-cluster-push-secret 4
+      type: docker 5
+    plugins: 6
+    - name: debezium-postgres-connector
+      artifacts:
+      - type: tgz 7
+        url: https://a.plugin.url/debezium-connector-postgres-1.3.1.Final-plugin.tar.gz 8
+        sha512sum: 962a12151bdf9a5a30627...f035a0447cb820077af00c03 9
+    - name: camel-elasticsearch-rest-kafka-connector
+      artifacts:
+      - type: tgz
+        url: https://a.plugin.url/camel-elasticsearch-rest-kafka-connector-0.10.0-package.tar.gz
+  config:
+    config.storage.topic: my-connect-cluster-configs
+    offset.storage.topic: my-connect-cluster-offsets
+    status.storage.topic: my-connect-cluster-status
+    config.storage.replication.factor: 1
+    offset.storage.replication.factor: 1
+    status.storage.replication.factor: 1
+  replicas: 2
+  version: 2.8.0
+```
+
+1
+
+En lugar de un valor image, debe usar un valor build en este caso.
+
+2
+
+En output se definen la salida de la imagen y sus detalles.
+
+3
+
+La dirección de registro para la imagen personalizada de Kafka Connect que el operador AMQ Streams crea y envía.
+
+4
+
+Envíe el nombre del secreto para enviar la imagen al registro definido. Debería crear este secreto de envío por adelantado.
+
+5
+
+El tipo de salida puede ser docker o imagestream. Mientras que el tipo de salida docker define una imagen externa que se va a crear, imagestream define una imagen interna de RHOCP a la que se accede a través de ImageStream.
+
+6
+
+Lista de complementos (plug-ins) de conectores y sus artefactos para agregar a la nueva imagen de contenedor. Cada complemento (plug-in) debe estar configurado con al menos un artefacto.
+
+7
+
+Tipo de artefacto para el complemento (plug-in). Este campo puede tener valores tgz, zip y jar.
+
+8
+
+URL desde la que se descarga el artefacto del complemento (plug-in).
+
+9
+
+(Opcional) Suma de comprobación de SHA-512 para verificar el artefacto de complemento (plug-in).
+
+### Uso del recurso KafkaConnector
+
+Con el recurso personalizado KafkaConnector, puede definir el estado deseado de un conector en un archivo YAML e implementar el recurso en OpenShift para crear las instancias del conector. Debe implementar los recursos personalizados de KafkaConnector en el mismo espacio de nombres que su clúster de Kafka Connect.
+
+En el siguiente fragmento se muestra cómo definir una instancia de conector.
+
+```
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnector
+metadata:
+  name: my-source-connector 1
+  labels:
+    strimzi.io/cluster: my-connect-cluster 2
+spec:
+  class: org.apache.kafka.connect.file.FileStreamSourceConnector 3
+  tasksMax: 2 4
+  config: 5
+    file: "/opt/kafka/LICENSE"
+    topic: my-topic
+```
+
+1
+
+Nombre único asignado al conector.
+
+2
+
+Nombre del clúster de Kafka Connect con el que se va a enlazar.
+
+3
+
+Nombre o alias completamente calificado de la clase que implementa la lógica del conector.
+
+4
+
+Cantidad máxima de tareas que el conector puede crear.
+
+5
+
+Configuración del conector como pares de clave-valor. Cada implementación de conector puede tener diferentes opciones de configuración.
+
+**Ejemplo**
+
+Cree un conector de origen GitHub usando el recurso personalizado KafkaConnector.
+
+Abra el archivo resources/github-source-connector.yaml y configure el usuario de GitHub y el token de acceso.
+
+El contenido del archivo debería verse de la siguiente manera:
+
+```
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnector
+metadata:
+  labels:
+    strimzi.io/cluster: my-connect-cluster
+  name: github-source-connector
+spec:
+  class: org.apache.camel.kafkaconnector.github.CamelGithubSourceConnector 1
+  config:
+    camel.source.endpoint.oauthToken: YOUR_GITHUB_TOKEN 2
+    camel.source.endpoint.repoName: ad482-connectors 3
+    camel.source.endpoint.repoOwner: YOUR_GITHUB_USERNAME 4
+    camel.source.path.branchName: main 5
+    camel.source.path.type: event 6
+    key.converter: org.apache.kafka.connect.json.JsonConverter 7
+    value.converter: org.apache.kafka.connect.json.JsonConverter 8
+    topics: github-events 9
+  tasksMax: 1
+```
+
+1
+
+Clase de conector que implementa la integración con GitHub.
+
+2
+
+Configuración específica para el conector origen de Camel. Define el token de acceso que se va a usar.
+
+3
+
+Configuración específica para el conector origen de Camel. Define el repositorio de GitHub.
+
+4
+
+Configuración específica para el conector origen de Camel. Define el usuario del repositorio.
+
+5
+
+Configuración específica para el conector origen de Camel. Define el nombre de la rama de GitHub.
+
+6
+
+Configuración específica para el conector origen de Camel. Define el tipo de ruta.
+
+7
+
+Convertidor de claves.
+
+8
+
+Convertidor de valores.
+
+9
+
+Tema al que se envían los mensajes.
+
+### Captura de los datos de eventos de cambio con Debezium
+
+Cada implementación de conector puede tener diferentes opciones de configuración. El siguiente es un ejemplo de un conector Debezium MySQL, que se define como un recurso personalizado de KafkaConnector.
+
+```
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnector
+metadata:
+  labels:
+    strimzi.io/cluster: my-connect-cluster
+  name: mysql-debezium-connector
+spec:
+  class: io.debezium.connector.mysql.MySqlConnector 1
+  config:
+    database.hostname: mysql 2
+    database.port: 3306 3
+    database.user: dbuser 4
+    database.password: dbpassword 5
+    database.dbname: neverendingblog 6
+    database.server.name: db 7
+    table.include.list: neverendingblog.posts 8
+    database.history.kafka.topic: dbhistory.posts 9
+    database.history.kafka.bootstrap.servers: 'my-cluster-kafka-bootstrap:9092' 10
+  tasksMax: 1
+```
+
+1
+
+Clase de conector Debezium MySQL que habilita la conexión MySQL para CDC.
+
+2
+
+Dirección de host del servidor MySQL.
+
+3
+
+Número de puerto del servidor MySQL.
+
+4
+
+Usuario de MySQL con los privilegios adecuados.
+
+5
+
+Contraseña del usuario de MySQL.
+
+6
+
+Base de datos MySQL que incluye las tablas relevantes a las que se conectará.
+
+7
+
+Nombre lógico del servidor MySQL o clúster.
+
+8
+
+Nombre de la tabla en la base de datos cuyos datos deben ser capturados por Debezium.
+
+9
+
+Dirección del clúster de Kafka que el conector usa para escribir y recuperar instrucciones de Lenguaje de definición de datos (DDL) en el tópico del historial de la base de datos.
+
+10
+
+Lista de brókers de Kafka que usa el conector para escribir y recuperar instrucciones DDL en el tópico del historial de la base de datos.
+
+
+
