@@ -161,6 +161,10 @@ Nos mostrará la URL pública del balanceador. De hecho, en EC2, en LoadBalancer
 
 También ha creado un nuevo Security Group. 
 
+### Consejos
+
+Es importante desactivar el acceso público cuando estamos en producción. Solo el privado.
+
 
 
 
