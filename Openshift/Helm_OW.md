@@ -588,6 +588,268 @@ Hay muchas más posibilidades para gestionar nuestras dependencias, te invito a 
 
 https://helm.sh/docs/charts/#chart-dependencies
 
+### Integración continua con Helm
+
+**Creación del servidor**
+
+En resumen, es una aplicación web en Python (app.py y requirements.txt), que se ejecuta dentro de un Dockerfile y que a su vez incluye un chart de Helm para desplegarla de forma automática en Kubernetes.
+
+* build.sh
+  
+En el video creamos un script shell que nos sirve para construir la aplicación completa y pushearla a nuestros registries de Docker y Helm:
+
+```
+VERSION=$1
+echo "Construyendo version: $VERSION"
+docker build -t "localhost:32000/myapp:$VERSION" .
+docker push "localhost:32000/myapp:$VERSION"
+helm dependency update helm-chart
+helm push helm-chart --version="$VERSION" myrepo
+```
+
+Dentro del directorio donde se crea el dockerfile de esta app basada en Flask, creamos igualmente una carpeta para el chart (helm-chart). A su vez, dentro de esta carpeta creamos el chart.yaml, el values.yaml, un readme y otra carpeta para los templates donde se insertarán un deployment.yaml y un service.yaml
+
+* Deployment.yaml
+
+```
+{{- $deployName := printf "%s-%s" .Release.Name "server" -}}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $deployName }}
+  namespace: {{ .Release.Namespace}}
+spec:
+  selector:
+    matchLabels:
+      app: {{ $deployName }}
+  replicas: {{ .Values.replicas }}
+  template:
+    metadata:
+      labels:
+        app: {{ $deployName }}
+      {{- if .Values.podAnnotations }}
+      annotations:
+        {{- range $key, $value := .Values.podAnnotations }}
+        {{ $key | quote }}: {{ $value | quote }}
+        {{- end }}
+      {{- end }}
+    spec:
+      containers:
+      - name: myapp
+        image: {{ required "An image is required" .Values.image }}
+        ports:
+        - containerPort: 5000
+        env:
+          - name: foo
+            value: bar
+          {{- if .Values.customVar }}
+          - name: CUSTOM_VAR
+            value: {{ .Values.customVar}}
+          {{- end }}
+```
+
+* Service.yaml
+
+```
+{{- $deployName := printf "%s-%s" .Release.Name "server" -}}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $deployName }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: {{ $deployName }}
+  ports:
+  - protocol: TCP
+    port: 5000
+```
+
+**Ciclo de vida: Despliegue**
+
+* deploy.sh
+  
+Después creamos otro sencillo script para desplegar la versión de la aplicación que queramos y en el entorno que queramos, pasándolo como parámetro. También usamos un tercer parámetro para personalizar un value dependiendo del entorno.
+
+```
+VERSION=$1
+ENVIRONMENT=$2
+CUSTOMVAR=$3
+
+echo "Desplegando version $VERSION en el entorno $ENVIRONMENT"
+helm repo update
+helm upgrade --install "$ENVIRONMENT-app-example" myrepo/app-example \
+--namespace $ENVIRONMENT \
+--version $VERSION \
+--set image=localhost:32000/myapp:$VERSION \
+--set customVar=$CUSTOMVAR
+```
+
+En apenas 10 líneas tenemos un proceso completamente funcional y seguro de despliegue continuo.
+
+Podemos lanzar el dockerfile con la siguiente sentencia:
+
+```
+docker build -t localhost:32000/myapp:latest .
+```
+
+Para instalar el chart de helm con el que vamos a llevar a cabo la integración continua:
+
+```
+helm install ./helm-chart --name myexampleapp --set image=localhost:32000/myapp
+```
+
+Ahora vamos a modificar algo y actualizarlo:
+
+```
+helm upgrade myexampleapp ./helm-chart --set image=localhost:32000/myapp --set customVar='Holaaaa'
+```
+
+Y en el navegador, veremos como los cambios se producen de inmediato.
+
+**Ciclo de vida: Integración continua**
+
+Primero, lanzamos el build.sh con la versión inicial como parámetro. 
+
+Hacemos helm repo update y con helm search + nombre de la app vemos si la versión es la indicada.
+
+Segundo, lanzamos el deploy.sh con la versión siguiente, nombre de entorno y la modificación a realizar si se deseara.
+
+### Desarrollo local con Skaffold
+
+Helm también es perfecto para entornos locales ya que almacena todo lo necesario para desplegar tu aplicación en un cluster de Kubernetes local y facilitar el desarrollo.
+
+En este sentido sería similar a docker-compose pero con el requisito de un cluster de Kubernetes local.
+
+En la demostración utilizamos Skaffold. Skaffold es una herramienta potentísima para el desarrollo de aplicaciones en Kubernetes. Te invito a que conozcas todo lo que puedes hacer con ella.
+
+Para comenzar usarla simplemente incluimos el archivo skaffold.yaml que define cómo se construye nuestra aplicación (en nuestro caso es simplemente con Docker y Helm):
+
+```
+apiVersion: skaffold/v1beta11
+kind: Config
+build:
+  artifacts:
+    - image: localhost:32000/myapp
+      sync:
+        manual:
+        - src: "app.py"
+          dest: /usr/src/app
+
+deploy:
+  helm:
+    releases:
+      - name: local-myapp
+        chartPath: helm-chart
+        values:
+          image: localhost:32000/myapp
+```
+
+Para levantar la aplicación en el clúster de Kubernetes para desarrollo utilizamos el comando:
+
+```
+skaffold dev --port-forward
+```
+
+Además, Skaffold creará automáticamente un túnel entre nuestra carpeta y el pod en Kubernetes (apartado sync del skaffold.yaml), y también un túnel de red para que podamos acceder a nuestra aplicación con localhost (--port-forward), con lo que podemos desarrollar como si estuviésemos en un entorno local, pero en realidad la aplicación está levantada automáticamente en Kubernetes, con todas sus dependencias y en un entorno completamente igual al de producción.
+
+### Herramientas complementarias con Helm que facilitan su uso
+
+**Chartify**
+
+Chartify genera nuevos charts de Helm a partir de recursos ya existentes en tu clúster, o a partir de sus YAML. Es perfecto si ya tienes tus aplicaciones definidas en Kubernetes y quieres empezar a usar Helm.
+
+https://github.com/appscode/chartify
+
+**Helmfile**
+
+Helmfile permite definir tus releases de forma declarativa. De esta forma sustituyes los comandos de instalación o actualización de todas tus aplicaciones por un fichero de configuración, con todas tus releases y sus values, que puedes aplicar al mismo tiempo.
+
+Es la pieza que faltaba para poder definir toda la infraestructura de forma declarativa con Helm.
+
+https://github.com/roboll/helmfile
+
+**Helm backup**
+
+Realiza y restaura backups de releases de Helm. Bueno para un disaster recovery rápido y para tener una segunda copia de la información de las releases (recordamos que Helm ya almacenaba esa información en config maps)
+
+https://github.com/maorfr/helm-backup
+
+**Helm Value Store**
+
+Es una base de datos para los values de las releases. Permite almacenar esas variables para facilar su uso, de otra manera sería más desordenado.
+
+https://github.com/skuid/helm-value-store
+
+**Helm edit**
+
+Permite editar los values directamente en un editor de código
+
+https://github.com/mstrzele/helm-edit
+
+### Seguridad en Helm y puesta en producción
+
+**Seguridad en el Tiller**
+
+Para poder operar correctamente, el Tiller necesita permisos muy amplios en el clúster de Kubernetes. De hecho en la instalación por defecto (al hacer helm init), se otorga a sí mismo permisos de administrador del clúster.
+
+Esto puede valer para clústeres pequeños o personales de Kubernetes pero no para uno que esté en producción o que sea compartido por distintos equipos.
+
+Es un problema porque todo el que tenga acceso al Tiller (es decir, todos los usuarios de Helm), tendrá efectivamente permisos de administrador.
+
+Por suerte hay varias medidas que podemos tomar.
+
+**RBAC**
+
+RBAC (role-based access control) es el sistema de control de accesos más común en Kubernetes, y desde luego el más potente.
+
+Con él puedes limitar los permisos que le das al Tiller. Simplemente es necesario crear una cuenta de servicio, darle los permisos mínimos necesarios, y ejecutar helm init con el parámetro --service-account <NOMBRE CUENTA DE SERVICIO>. De esta forma el Tiller se creará con la cuenta de servicio que tú has creado en lugar de una con permisos de administrador.
+
+Link a la documentación
+
+Otra opción muy común es desplegar varios tillers en el mismo clúster, cada uno con permisos para distintos namespaces.
+
+**TLS Auth**
+
+Como hemos comentado anteriormente, el Tiller no autentica de ninguna manera a los clientes. Es decir cualquier usuario de Kubernetes con unos permisos mínimos podría utilizar Helm, posiblemente con más privilegios de los que tiene asignados.
+
+Helm implementa un sistema de autenticación con certificados TLS. Es un buen sistema pero los certificados para usuarios hay que generarlos de forma manual. Se implementa al hacer helm init.
+
+Link a la documentación
+
+**Almacenar releases en secrets**
+
+Helm almacena toda la información sobre las releases en config maps, es decir, en texto plano. Esto es peligroso porque en esa información puede haber values como contraseñas, etc. Por suerte, existe la posibilidad de configurar el Tiller para que guarde esa información en secrets en vez de configmaps.
+
+También es interesante la opción --history-max para prevenir que se puedan crear demasiados configmaps/secrets de revisiones de releases
+
+Link a la documentación
+
+**Tiller local (Tillerless Helm plugin)**
+
+Con este plugin puedes prescindir de levantar un Tiller en el clúster. Lo que hace en realidad es levantar un Tiller temporal cada vez que ejecutas una operación. Pero este Tiller temporal nunca tiene más permisos que los del propio usuario que lo ejecuta, al contrario que el Tiller normal, que necesita muchos permisos para funcionar.
+
+Link a la documentación
+
+Helm CRD
+
+**Helm en producción**
+
+Siguiendo los consejos anteriores puedes tener Helm en un clúster en producción con seguridad de que nadie va a tener más permisos por utilizar Helm. En resumen:
+
+Despliega tantos Tiller como grupos de usuarios con permisos distintos tengas. Cada grupo de usuarios solo tendrá acceso a su Tiller, que a su vez solo tendrá permisos para las operaciones que se definan con RBAC.
+Utiliza autenticación TLS para evitar que usuarios no deseados se conecten a otros Tiller.
+Almacena las releases en secrets.
+
+
+
+
+
+
+
+
 
 
 
