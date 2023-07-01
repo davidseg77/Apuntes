@@ -1054,6 +1054,658 @@ REVISION  CHANGE-CAUSE
 
 Finalmente, podemos acceder de nuevo con un port-forward y comprobamos que hemos vuelto a la versión 2.
 
+## 6. Acceso a las aplicaciones
+
+### Trabajando con Services
+
+Suponemos que tenemos desplegado la aplicación test-web del capítulo anterior. Tenemos dos Pods ofreciendo el servidor web nginx, a los que queremos acceder desde el exterior y que se balancee la carga entre ellos.
+
+**Service ClusterIP**
+
+Podríamos crear un recurso Service desde la línea de comandos:
+
+```
+oc expose deployment/test-web
+```
+
+También podemos describir las características del Service en un fichero YAML service.yaml:
+
+```
+kind: Service
+apiVersion: v1
+metadata:
+  name: test-web
+  labels:
+    app: test-web
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  selector:
+    app: test-web
+```
+
+Veamos la descripción:
+
+* Vamos a crear un recurso Service (parámetro kind) y lo nombramos como nginx (parámetro name). Este nombre será importante para la resolución dns.
+* En la especificación del recurso indicamos el tipo de Service (parámetro type).
+* A continuación, definimos el puerto por el que va a ofrecer el Service y lo nombramos (dentro del apartado port: el parámetro port y el parámetro name). Además, debemos indicar el puerto en el que los Pods están ofreciendo el Service (parámetro targetPort)
+* Por ultimo, seleccionamos los Pods a los que vamos acceder y vamos a balancear la carga seleccionando los Pods por medio de sus etiquetas (parámetro selector).
+
+Podemos ver la información más detallada del Service que acabamos de crear:
+
+```
+oc describe service/test-web
+Name:              test-web
+...
+Selector:          app=test-web
+Type:              ClusterIP
+IP Family Policy:  SingleStack
+IP Families:       IPv4
+IP:                172.30.211.73
+IPs:               172.30.211.73
+Port:              http  8080/TCP
+TargetPort:        8080/TCP
+Endpoints:         10.128.43.128:8080,10.128.51.189:8080
+...
+```
+
+* Podemos ver la etiqueta de los Pods a los que accede (Selector).
+* El tipo de Service (Type). La IP virtual que ha tomado (CLUSTER-IP) y que es accesible desde el cluster (IP).
+* El puerto por el que ofrece el Service (Port).
+* El puerto de los Pods a los que redirige el tráfico (TargetPort).
+* Y por último, podemos ver las IPs de los Pods que ha seleccionado y sobre los que balanceará la carga (Endpoints).
+
+**Services NodePort**
+
+La definición de un Service de tipo NodePort sería exactamente igual, pero cambiando el parámetro type. Por ejemplo, lo tenemos definido en el fichero service-np.yaml:
+
+``` 
+kind: Service
+apiVersion: v1
+metadata:
+  name: test-web-np
+  labels:
+    app: test-web
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  selector:
+    app: test-web
+```
+
+Creamos el recurso:
+
+```
+oc apply -f service-np.yaml
+```
+
+Para ver los Services que tenemos creado:
+
+```
+oc get services
+
+NAME          TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)          AGE
+test-web      ClusterIP   10.217.4.144   <none>        8080/TCP         7s
+test-web-np   NodePort    10.217.5.209   <none>        8080:30737/TCP   4s
+```
+
+Recuerda que si usamos oc get all también se mostrarán los Services.
+
+Vamos a acceder a la aplicación, necesitamos saber la dirección IP del nodo master del clúster, para ello ejecuto:
+
+```
+crc ip
+192.168.130.11
+```
+
+Por lo tanto para acceder necesito esa dirección IP y el puerto que se ha asignado al Service NodePort, en nuestro caso 30737.
+
+Para eliminar el Service, ejecutamos:
+
+``` 
+oc delete service/test-web-np
+```
+
+### Accediendo a las aplicaciones: ingress y routes
+
+**Ingress**
+
+Aunque podríamos utilizar la definición de un recurso ingress para el acceso a la aplicación usando una URL, por ejemplo con un fichero ingress.yaml:
+
+```
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-test-web
+spec:
+  rules:
+  - host: www.example.org
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: test-web
+            port:
+              number: 8080
+```
+
+En la definición hemos iniciado los siguientes parámetros:
+
+* host: Indicamos el nombre de host que vamos a usar para el acceso. Este nombre debe apuntar a la ip de un nodo del clúster.
+* path: Indicamos el path de la url que vamos a usar, en este caso sería la ruta raíz: /.
+* pathType: No es importante, nos permite indicar cómo se van a trabajar con las URL.
+* backend: Indicamos el Service al que vamos a acceder. En este caso indicamos el nombre del Service (service/name) y el puerto del Service (service/port/number).
+  
+Y podríamos crear el recurso, ejecutando:
+
+``` 
+oc apply -f ingress.yaml
+```
+
+*Nota:* Si estamos usando OpenShift Dedicated Developer Sandbox, no tenemos acceso a la dirección IP del nodo master del clúster, por lo que en nuestro servidor DNS no podemos asociar la URL con una dirección IP. De la misma manera, no podremos usar un recurso Service de tipo NodePort.
+
+En OpenShift se recomienda el uso de recursos Routes, que nos asignan de forma automática una URL que podemos usar directamente (está dada de alta en un servidor DNS).
+
+**Route**
+
+La manera más sencilla de crear un recurso Route en OpenShift es ejecutando:
+
+```
+oc expose service/test-web
+```
+
+También podemos definir el recurso en un fichero route.yaml, para crearlo a continuación con oc apply:
+
+```
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: test-web
+  labels:
+    app: test-web
+spec:
+  to:
+    kind: Service
+    name: test-web
+  port:
+    targetPort: http
+```
+
+Ahora podemos ver los objetos routes que tenemos creados, ejecutando:
+
+```
+oc get routes
+```
+
+Y obtener información de la ruta creada con el comando:
+
+```
+oc describe route/test-web
+Name:			test-web
+Namespace:		test-web
+Created:		About a minute ago
+Labels:			app=test-web
+Annotations:		openshift.io/host.generated=true
+Requested Host:		test-web-test-web.apps.sandbox-m3.1530.p1.openshiftapps.com
+
+...
+Service:	test-web
+Weight:		100 (100%)
+Endpoints:	10.128.43.128:8080, 10.128.51.189:8080
+```
+
+Podemos ver la URL que nos han asignado para el acceso (Requested Host), el servicio con el que esta conectado (Service) y cómo está balanceado la carga entre los Pods seleccionados por el servicio (Endpoints).
+
+El formato de la URL que se ha generado es:
+
+```
+<nombre_despliegue>-<nombre_namespace>-<url de acceso al clúster de openshift>
+```
+
+Podemos usar la URL para acceder a la aplicación.
+
+### Servicio DNS en OpenShift
+
+Existe un componente en OpenShift que ofrece un servidor DNS interno para que los Pods puedan resolver diferentes nombres de recursos (Services, Pods, ...) a direcciones IP.
+
+Cada vez que se crea un nuevo recurso Service se crea un registro de tipo A con el nombre:
+
+<nombre_servicio>.<nombre_namespace>.svc.cluster.local.
+
+**Comprobemos el servidor DNS**
+
+Partimos del punto anterior donde tenemos creado un Service:
+
+```
+oc get services
+test-web            ClusterIP   172.30.211.73   <none>        8080/TCP  
+```
+
+Para comprobar el servidor DNS de nuestro clúster y que podemos resolver los nombres de los distintos Services, vamos a usar un Pod, cuya definición esta en el fichero busybox.yaml creado desde una imagen busybox. Es una imagen muy pequeña pero con algunas utilidades que nos vienen muy bien:
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: busybox
+spec:
+  containers:
+  - name: contenedor
+    image: busybox
+    command:
+      - sleep
+      - "3600"
+    imagePullPolicy: IfNotPresent
+```
+
+Creamos el pod:
+
+```
+oc apply -f busybox.yaml
+```
+
+¿Qué servidor DNS está configurado en los Pods que estamos creando? Podemos ejecutar la siguiente instrucción para comprobarlo:
+
+``` 
+oc exec -it busybox -- cat /etc/resolv.conf
+search test-web.svc.cluster.local svc.cluster.local cluster.local crc.testing
+nameserver 10.217.4.10
+```
+
+El servidor DNS tiene asignado la IP del clúster *10.217.4.10.*
+
+Podemos utilizar el nombre corto del Service, porque buscará el nombre del host totalmente cualificado usando los dominios indicados en el parámetro search. Como vemos el primer nombre de dominio es el que se crea con los Services: test-web.svc.cluster.local svc.cluster.local (recuerda que el proyecto que estamos usando es test-web).
+
+Vamos a comprobar que realmente se ha creado un registro A para el Service, haciendo consultas DNS:
+
+```
+oc exec -it busybox -- nslookup test-web
+Server:		10.217.4.10
+Address:	10.217.4.10:53
+...
+Name:	test-web.test-web.svc.cluster.local
+Address: 10.217.4.144
+```
+
+Vemos que ha hecho la resolución del nombre test-web con la IP correspondiente a su servicio.
+
+Podemos concluir que, cuando necesitemos acceder desde alguna aplicación desplegada en nuestro clúster a otro servicio ofrecido por otro despliegue, utilizaremos el nombre que hemos asignado a su Service de acceso.
+
+## 7. Despliegues parametrizados
+
+### Variables de entorno
+
+**Configuración de aplicaciones usando variables de entorno**
+
+Utilizaremos el fichero mysql-deployment-env.yaml:
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  labels:
+    app: mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+        - name: contenedor-mysql
+          image: bitnami/mysql
+          ports:
+            - containerPort: 3306
+              name: db-port
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: my-password
+```
+
+En el apartado containers hemos incluido la sección env donde vamos indicando, como una lista, el nombre de la variable (name) y su valor (value).
+
+Vamos a trabajar con el usuario developer, creando un nuevo proyecto:
+
+```
+oc new-project mysql
+```
+
+Vamos a comprobar si realmente se ha creado el servidor de base de datos con esa contraseña del root:
+
+```
+oc apply -f mysql-deployment-env.yaml
+
+oc get all
+```
+
+Comprobamos que se ha creado una variable del entorno en el contenedor:
+
+```
+oc exec -it deployment.apps/mysql-env -- env
+...
+MYSQL_ROOT_PASSWORD=my-password
+```
+
+Y finalmente realizamos un acceso a la base de datos:
+
+```
+oc exec -it deployment.apps/mysql-env -- bash -c "mysql -u root -p -h 127.0.0.1"
+Enter password:
+...
+mysql>
+```
+
+### ConfigMaps
+
+**Configuración de aplicaciones usando ConfigMaps**
+
+ConfigMap permite definir un diccionario (clave,valor) para guardar información que se puede utilizar para configurar una aplicación.
+
+Aunque hay distintas formas de indicar el conjunto de claves-valor de nuestro ConfigMap, en este caso vamos a usar literales, por ejemplo:
+
+```
+oc create cm mysql --from-literal=root_password=my-password \
+                          --from-literal=mysql_usuario=usuario     \
+                          --from-literal=mysql_password=password-user \
+                          --from-literal=basededatos=test
+```
+
+En el ejemplo anterior, hemos creado un ConfigMap llamado mysql con cuatro pares clave-valor. Para ver los ConfigMaps que tenemos creados, podemos utilizar:
+
+```
+oc get cm
+```
+
+Y para ver los detalles del mismo:
+
+```
+oc describe cm mysql
+```
+
+Si queremos crear un fichero YAML para declarar el objeto ConfigMap, podemos ejecutar:
+
+```
+oc create cm mysql --from-literal=root_password=my-password \
+                          --from-literal=mysql_usuario=usuario     \
+                          --from-literal=mysql_password=password-user \
+                          --from-literal=basededatos=test \
+                          -o yaml --dry-run=client > configmap.yaml
+```
+
+Una vez que creado el ConfigMap se puede crear un despliegue donde las variables de entorno se inicializan con los valores guardados en el ConfigMap. Por ejemplo, un despliegue de una base de datos lo podemos encontrar en el fichero mysql-deployment-configmap.yaml:
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-configmap
+  labels:
+    app: mysql2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql2
+  template:
+    metadata:
+      labels:
+        app: mysql2
+    spec:
+      containers:
+        - name: contenedor-mysql
+          image: bitnami/mysql
+          ports:
+            - containerPort: 3306
+              name: db-port
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: mysql
+                  key: root_password
+            - name: MYSQL_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: mysql
+                  key: mysql_usuario
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: mysql
+                  key: mysql_password
+            - name: MYSQL_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: mysql
+                  key: basededatos
+```
+
+Creamos el despliegue, comprobamos que las variables se han creado y accedemos a la base de datos con el usuario que hemos creado:
+
+```
+oc apply -f mysql-deployment-configmap.yaml
+
+oc exec -it deploy/mysql-configmap -- env
+...
+MYSQL_ROOT_PASSWORD=my-password
+MYSQL_USER=usuario
+MYSQL_PASSWORD=password-user
+MYSQL_DATABASE=test
+
+oc exec -it deployment.apps/mysql-configmap -- bash -c "mysql -u usuario -p -h 127.0.0.1"
+Enter password: 
+...
+mysql> show databases;
+```
+
+### Secrets
+
+Los Secrets permiten guardar información sensible que será codificada o cifrada.
+
+Hay distintos tipos de Secret, en este curso vamos a usar los genéricos y los vamos a crear a partir de un literal. Por ejemplo para guardar la contraseña del usuario root de una base de datos, crearíamos un Secret de la siguiente manera:
+
+```
+oc create secret generic mysql --from-literal=password=my-password
+```
+
+Podemos obtener información de los Secrets que hemos creado con las instrucciones:
+
+```
+oc get secret
+oc describe secret mysql
+```
+
+Si queremos crear un fichero YAML para declarar el objeto Secret, podemos ejecutar:
+
+```
+oc create secret generic mysql --from-literal=password=my-password \
+                          -o yaml --dry-run=client > secret.yaml
+```
+
+Veamos a continuación cómo quedaría un despliegue que usa el valor de un Secret para inicializar una variable de entorno. Vamos a usar el fichero mysql-deployment-secret.yaml:
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-secret
+  labels:
+    app: mysql3
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql3
+  template:
+    metadata:
+      labels:
+        app: mysql3
+    spec:
+      containers:
+        - name: contenedor-mysql
+          image:  bitnami/mysql
+          ports:
+            - containerPort: 3306
+              name: db-port
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql
+                  key: password
+```
+
+Observamos como al indicar las variables de entorno (sección env) seguimos indicado el nombre (name) pero el valor se indica con un valor de un Secret (valueFrom: - secretKeyRef:), indicando el nombre del Secret (name) y la clave correspondiente (key).
+
+### Agrupación de aplicaciones
+
+**Agrupando despliegues en aplicaciones**
+
+Cogemos uno de los despliegues que queremos agrupar, y elegimos la opción Edit application grouping.
+
+A continuación podemos nombrar la aplicación (el agrupamiento) que estamos creando
+
+En el otro despliegue escogemos la misma opción (Edit application grouping) y escogemos lel nombre de la aplicación que ya tenemos creada
+
+En este momento los dos despliegues ya están agrupados, y podemos verlo visualmente en la topología
+
+La agrupación ha creado un nuevo Label en cada uno de los Deployments implicados:
+
+    app.kubernetes.io/part-of=wordpress
+
+**Conexión entre despliegues**
+
+Podemos indicar que existe una relación entre despliegues de una aplicación, para ello sólo tenemos que arrastrar la flecha que sale de uno de los despliegues encima de otro despliegue
+
+En este caso queremos señalar que los Pods del despliegue Wordpress acceden a los Pods del despliegue MySql. Las conexiones se señalan en el recurso con una anotación, por ejemplo en el Deployment** Wordpress se ha realiza una nueva anotación:
+
+    app.openshift.io/connects-to: [{"apiVersion":"apps/v1","kind":"Deployment","name":"mysql"}]
+
+## 8. Almacenamiento en OpenShift v4
+
+### Almacenamiento en CRC
+
+Al usar la instalación local de OpenShift realizada con la herramienta CRC, tenemos todo el control del clúster, y con el usuario administrador tendremos acceso a todos los recursos relacionados con el almacenamiento.
+
+Por lo tanto, el usuario administrador podrá gestionar los recursos PersitentVolumen y storageClass, mientras que los usuarios sin privilegios gestionarán los recursos PersistentVolumenClaim para realizar la petición de los volúmenes. Veamos esto con un ejemplo:
+
+```
+    oc login -u developer -p developer https://api.crc.testing:6443'.
+    oc get pv
+```
+
+En el caso de nuestra instalación con CRC tenemos disponible un StorageClass de tipo hostpath, es decir cada volumen corresponde con un directorio en el host (al tener un sólo nodo en el clúster con este tipo de almacenamiento tenemos almacenamiento compartido entre todas las réplicas de un Pod):
+
+```
+    oc get storageclass
+```
+
+Podemos observar que la configuración del recurso Storage Class tiene los siguientes parámetros:
+
+* Política de reciclaje Delete, es decir cuando el volumen se desasocie de su solicitud, se borrará.
+
+* Modo de asociación WaitForFirstConsumer, es decir no se crea el objeto PersistentVolumen (PV) hasta que no se utilice el volumen por el contenedor.
+
+### Volúmenes dentro de un pod
+
+**Declaración de volúmenes en un pod**
+
+Vamos a trabajar con la definición de un Pod que hemos definido en el fichero pod.yaml:
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+spec:
+  containers:
+  - name: writer-container
+    image: busybox
+    volumeMounts:
+    - name: shared-data
+      mountPath: /data
+    - name: host-data
+      mountPath: /dir
+    command: ["sh", "-c", "echo 'Hello, world!' > /data/my-file.txt && sleep 3600"]
+  - name: reader-container
+    image: busybox
+    volumeMounts:
+    - name: shared-data
+      mountPath: /data
+    - name: host-data
+      mountPath: /dir
+    command: ["/bin/sh", "-c", "cat /data/my-file.txt; sleep 3600"]
+    args: ["-w"]
+  volumes:
+  - name: shared-data
+    emptyDir: {}
+  - name: host-data
+    host-path:
+      path: /tmp/datos
+```
+
+En el Pod hemos definido dos contenedores y dos volúmenes.
+
+* El volumen (shared-data) es de tipo emptyDir y se monta en el directorio /data de los dos contenedores.
+* El volumen (host-data) es de tipo hostPath y se monta en el directorio /dir de los dos contenedores.
+* El contenedor writer-container escribe un fichero en el directorio /data.
+* El contenedor reader-container lee el fichero guardado en el directorio /data.
+
+Estamos trabajando con el usuario administrador en el proyecto default_
+
+```
+oc login -u kubeadmin https://api.crc.testing:6443
+oc project default
+```
+
+```
+oc apply -f pod.yaml
+```
+
+Y mostramos los logs del contenedor reader-container, para asegurarnos que está leyendo el fichero que ha creado el contenedor writer-container:
+
+```
+oc logs -c reader-container my-pod
+Hello, world!
+```
+
+Si cambiamos el valor del fichero en el primer contenedor, cambiará en el segundo contenedor:
+
+```
+oc exec -c writer-container my-pod -- sh -c 'echo "Hola, mundo!" > /data/my-file.txt'
+oc exec -c reader-container my-pod -- sh -c 'cat /data/my-file.txt'
+Hola, mundo!
+```
+
+Si creamos un nuevo fichero en el directorio /dir del primer contenedor, se estará creando en el directorio /tmp/datos del host donde se está ejecutando el Pod. A continuación listaremos los ficheros del directorio /dir del segundo contenedor y se debe mostrar el fichero:
+
+```
+oc exec -c writer-container my-pod -- sh -c 'touch /dir/new-file.txt'
+oc exec -c reader-container my-pod -- sh -c 'ls /dir'
+new-file.txt
+```
+
+Si borramos el Pod se eliminará lo guardado en el directorio /data. Al crear un nuevo Pod, el volumen de tipo hostPath se creará de nuevo por lo que el directorio /tmp/datos se creará de nuevo y el directorio /dir del Pod también estará vacío.
+
+Finalmente podemos obtener información de los volúmenes que tenemos en un Pod ejecutando:
+
+```
+oc describe pod/my-pod
+```
+
 
 
 
