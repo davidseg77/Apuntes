@@ -1706,6 +1706,179 @@ Finalmente podemos obtener información de los volúmenes que tenemos en un Pod 
 oc describe pod/my-pod
 ```
 
+### Aprovisionamiento dinámico de volúmenes
+
+En este ejemplo vamos a desplegar un servidor web que va a servir una página html que tendrá almacenada en un volumen. La asignación del volumen se va a realizar de forma dinámica.
+
+Como vimos en CRC tenemos configurado un recurso StorageClass, que de forma dinámica van a crear el nuevo volumen de tipo hostPath y lo asocian a la petición de volumen que vamos a realizar.
+
+```
+oc get storageclass
+```
+
+**Solicitud del volumen**
+
+Vamos a realizar la solicitud de volumen, en este caso usaremos el fichero pvc.yaml:
+
+```
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: my-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+```
+
+Al crear el objeto PersistentVolumenClaim (PVC), veremos que se queda en estado Pending, no se creará el objeto PersistentVolume (PV) hasta que no lo vayamos a usar por primera vez:
+
+```
+oc login -u developer -p developer https://api.crc.testing:6443
+oc new-project almacenamiento
+```
+
+```
+oc apply -f pvc.yaml 
+
+oc get pvc
+```
+
+Podemos ver las características del objeto que hemos creado, ejecutando:
+
+```
+oc describe pvc my-pvc
+```
+
+**Uso del volumen**
+
+Creamos el Deployment usando el fichero deployment.yaml:
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - image: bitnami/nginx
+        name: contenedor-nginx
+        ports:
+        - name: http
+          containerPort: 8080
+        volumeMounts:
+        - name: my-volumen
+          mountPath: /app
+        securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+              - ALL
+      volumes:
+      - name: my-volumen
+        persistentVolumeClaim:
+          claimName: my-pvc
+```
+
+En la especificación del Pod, además de indicar el contenedor, hemos indicado que va a tener un volumen (campo volumes).
+
+En realidad, definimos una lista de volúmenes (en este caso solo definimos uno) indicando su nombre (name) y la solicitud del volumen (persistentVolumeClaim - claimName).
+
+Además en la definición del contenedor tendremos que indicar el punto de montaje del volumen (volumeMounts) señalando el directorio del contenedor (mountPath) y el nombre (name).
+
+Creamos el Deployment:
+
+``` 
+oc apply -f deployment.yaml
+```
+
+Ya podemos comprobar que se ha asociado un volumen a la solicitud de volumen:
+
+```
+oc get pvc
+```
+
+También podemos verlos desde el punto de vista del administrador para poder listar los objetos PeristentVolume:
+
+```
+oc login -u kubeadmin https://api.crc.testing:6443
+oc project developer
+
+oc get pv,pvc
+```
+
+*Nota:* Los objetos PersistentVolumeClaim están asociados a un proyecto (en nuestro caso developer/my-pvc). Sin embargo, los objetos PersistentVolume no pertenecen a un proyecto, son globales al clúster de OpenShift.
+
+Seguimos trabajando con el usurio developer, y creamos un fichero index.html:
+
+```
+oc login -u developer -p developer https://api.crc.testing:6443
+oc exec deploy/nginx -- bash -c "echo '<h1>Curso de OpenShift</h1>' > /app/index.html"
+```
+
+Finalmente creamos el Service y el Route para acceder al despliegue:
+
+```
+oc expose deploy/nginx
+oc expose service/nginx
+```
+
+Podemos comprobar que la información de la aplicación no se pierde borrando el Deployment y volviéndolo a crear, comprobando que se sigue sirviendo el fichero index.html.
+
+**Eliminación del volumen**
+
+En este caso, los volúmenes que crea de forma dinámica el StorageClass tiene como política de reciclaje el valor de Delete. Esto significa que cuando eliminemos la solicitud, el objeto PersistentVolumeClaim, también se borrará el volumen, el objeto PersistentVolume.
+
+```
+oc delete deploy/nginx
+oc delete persistentvolumeclaim/my-pvc
+```
+
+### Gestionando el almacenamiento desde la consola web
+
+Gestionando el almacenamiento desde la consola web como usuario sin privilegios
+Vamos a repetir el ejemplo visto en el punto anterior desde la consola web, con el usuario developer trabajando en el mismo proyecto developer.
+
+Lo primero será crear un objeto Deployment, para ello desde la vista Administrator, escogemos el apartado Workloads -> Deployments y pulsamos sobre el botón Create Deployment.
+
+Creamos el Deployment desde el formulario, indicando el nombre (nginx), la imagen (bitnami/nginx).
+
+Los recursos relacionados con el almacenamiento lo encontramos en la vista de Administrator, el apartado Storage. Por ejemplo en el apartado StorageClasses encontramos los recursos de este tipo definidos en este clúster.
+
+En el apartado PersistentVolumeClaims podemos gestionar este tipo de recursos, pulsando en el botón Create PersistentVolumeClaim, podemos crear un nuevo objeto.
+
+Creamos la solicitud de almacenamiento desde el formulario, indicando el nombre, el modo de acceso y el tamaño entre otras propiedades.
+
+Podemos ver la lista de recursos PersistentVolumenClaim (PVC).
+
+Ahora tenemos que añadir a nuestro Deployment, el almacenamiento que hemos solicitado, para ello nos vamos al detalle del recurso Deployment y escogemos la acción Add storage.
+
+Indicando el recurso PersistentVolumenClaim (PVC) que vamos a asociar, y el punto de montaje.
+
+Como ha cambiado la definición del objeto, se crea un nuevo Pod con la nueva definición.
+
+A continuación, creamos el fichero index.html desde un terminal del Pod que se está ejecutando.
+
+Y podemos acceder a la aplicación usando los recursos Service y Route del aparatado anterior y comprobamos que está funcionando de forma adecuada.
+
+
+
 
 
 
