@@ -1878,6 +1878,447 @@ A continuación, creamos el fichero index.html desde un terminal del Pod que se 
 Y podemos acceder a la aplicación usando los recursos Service y Route del aparatado anterior y comprobamos que está funcionando de forma adecuada.
 
 
+## 9. Otros recursos para manejar nuestras aplicaciones
+
+### StatefulSet
+
+A diferencia de un Deployment, un StatefulSet mantiene una identidad fija para cada uno de sus Pods.
+
+Por lo tanto cada Pod es distinto (tiene una identidad única), y este hecho tiene algunas consecuencias:
+
+- El nombre de cada Pod tendrá un número (1,2,...) que lo identifica y que nos proporciona la posibilidad de que la creación actualización y eliminación sea ordenada.
+  
+- Si un nuevo Pod es recreado, obtendrá el mismo nombre (hostname), los mismos nombres DNS (aunque la IP pueda cambiar) y el mismo volumen que tenía asociado.
+  
+- Necesitamos crear un servicio especial, llamado Headless Service, que nos permite acceder a los Pods de forma independiente, pero que no balancea la carga entre ellos, por lo tanto este servicio no tendrá una ClusterIP.
+  
+La definición del objeto StatefulSet la tenemos guardada en el fichero statefulset.yaml:
+
+```
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: web
+spec:
+  serviceName: "nginx"
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: bitnami/nginx
+        ports:
+        - containerPort: 8080
+          name: web
+        volumeMounts:
+        - name: www
+          mountPath: /app
+  volumeClaimTemplates:
+  - metadata:
+      name: www
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+```
+
+* Se indica los Pods que vamos a controlar por medio de la etiqueta selector.
+* Como hemos indicado cada Pods va a tener asociado un volumen persistente, se hace la definición de la reclamación del volumen con la etiqueta volumeClaimTemplates.
+* Se indica el punto de montaje en el contenedor, con la etiqueta volumeMounts.
+  
+Por otro lado la definición del recurso Headless Service la tenemos en el fichero service.yaml:
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  ports:
+  - port: 8080
+    name: web
+  clusterIP: None
+  selector:
+    app: nginx
+```
+
+* En este caso no se balancea la carga a cada pod, sino que podemos acceder a cada Pod de manera independiente, con el nombre:
+
+```
+  <nombre_del_pod>.<nombre-statefulset>.<nombre-proyecto>.svc.cluster.local
+```
+
+* Por lo tanto no va tener asignada ninguna Cluster IP (clusterIP: None).
+
+* Se seleccionan los Pods a los que se puede acceder por medio de la etiqueta declarada en el apartado selector.
+
+**Creación ordenada de Pods**
+
+Lo primero creamos el recurso Headless Service y vamos comprobar la creación ordenados de Pods, para ello en un terminal observamos la creación de Pods y en otro terminal creamos los Pods:
+
+```
+watch oc get pod
+oc apply -f statefulset.yaml
+```
+
+**Comprobamos la identidad de red estable**
+
+Vemos los hostname y los nombres DNS asociados:
+
+```
+for i in 0 1; do oc exec web-$i -- sh -c 'hostname'; done
+web-0
+web-1
+```
+
+```
+oc run -it --image busybox:1.28 dns-test --restart=Never --rm
+/ # nslookup web-0.nginx
+...
+Address 1: 10.128.8.181 web-0.nginx.josedom24-dev.svc.cluster.local
+
+/ # nslookup web-1.nginx
+...
+Address 1: 10.128.43.7 web-1.nginx.josedom24-dev.svc.cluster.local
+```
+
+**Eliminación de Pods**
+
+En un terminal observamos la creación de Pods y en otro terminal eliminamos los Pods:
+
+```
+watch oc get pod
+oc delete pod -l app=nginx
+```
+
+**Comprobamos la identidad de red estable**
+
+Volvemos a crear el recurso StatefulSet y comprobamos que los hostnames y los nombres DNS asociados no han cambiado (las IP pueden cambiar):
+
+```
+oc apply -f statefulset.yaml
+for i in 0 1; do oc exec web-$i -- sh -c 'hostname'; done
+```
+
+```
+oc run -it --image busybox:1.28 dns-test --restart=Never --rm
+/ # nslookup web-0.nginx
+/ # nslookup web-1.nginx
+```
+
+**Escribiendo en los volúmenes persistentes**
+
+Comprobamos que se han creado volúmenes para los Pods:
+
+```
+oc get pvc
+```
+
+Creamos el fichero index.html en el directorio que hemos montado (directorio DocumentRoot del servidor web):
+
+``` 
+for i in 0 1; do oc exec "web-$i" -- sh -c 'echo "$(hostname)" > /app/index.html'; done
+for i in 0 1; do oc exec -i -t "web-$i" -- sh -c 'cat  /app/index.html'; done
+web-0
+web-1
+```
+
+Volvemos a eliminar los Pods, y comprobamos que la información es persistente al estar guardadas en los volúmenes:
+
+```
+oc delete pod -l app=nginx
+oc apply -f statefulset.yaml
+for i in 0 1; do oc exec -i -t "web-$i" -- sh -c 'cat  /app/index.html'; done
+```
+
+**Escalar el StatefulSet**
+
+Para escalar el despliegue:
+
+```
+oc scale sts web --replicas=5
+```
+
+Comprobamos los Pods y los volúmenes:
+
+```
+oc get pod,pvc
+```
+
+Si reducimos el número de Pods los volúmenes no se eliminan.
+
+**Gestión de StatefulSet desde la consola web**
+
+Para gestionar los objetos StatefulSet desde la consola web, escogemos la vista Admionistrator y la opción Workloads -> StatefulSets.
+
+En esa pantalla además, tenemos la opción de crear un nuevo recurso con el botón Create StatefulSet. Si escogemos un objeto determinado obtendremos la descripción del mismo.
+
+También podemos gestionar los objetos PersistentVolumeClaim que se han creado para cada uno de los Pods, en la sección Storage - > PersistentVolumeClaim.
+
+**Borrado del escenario**
+
+Para terminar eliminamos el statefulset y el service:
+
+```
+oc delete -f statefulset.yaml
+oc delete -f service.yaml
+```
+
+Para borrar los volúmenes:
+
+```
+oc delete --all pvc
+```
+
+### DaemonSet
+
+Un recurso DaemonSet garantiza que un Pod esté en ejecución en cada nodo del clúster OpenShift.
+
+El recurso DaemonSet es útil en situaciones donde se necesita ejecutar una tarea o servicio en todos los nodos del clúster, como la recolección de logs o la supervisión del sistema. También es común utilizar un DaemonSet para desplegar agentes de monitoreo o herramientas de seguridad en todos los nodos del clúster.
+
+Podemos seleccionar un subconjuntos de nodos del clúster donde queremos que se ejecuten los Pods, pero usando Red Hat OpenShift Dedicated Developer Sandbox, no somos usuarios administradores, por lo que no tenemos acceso a los objetos nodos del clúster y por lo tanto no podemos realizar la selección.
+
+Veamos un ejemplo, tenemos descrito el recurso DaemonSet en el fichero daemonset.yaml:
+
+```
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: logging
+spec:
+ selector:
+    matchLabels:
+       app: logging-app
+ template:
+   metadata:
+     labels:
+       app: logging-app
+   spec:
+     containers:
+       - name: webserver
+         image: bitnami/nginx
+         ports:
+         - containerPort: 8080
+```
+
+En este caso se va a crear un contenedor por cada nodo del clúster, para ello creamos el recursos y vemos los Pods que se han creado:
+
+```
+oc apply -f daemonset.yaml
+
+oc get pod -o wide
+```
+
+**Gestión de DaemonSet desde la consola web**
+
+Para gestionar los objetos DaemonSets desde la consola web, escogemos la vista Administrator y la opción Workloads -> DaemonSets.
+
+En esa pantalla además, tenemos la opción de crear un nuevo recurso con el botón Create DaemonSet. Si escogemos un objeto determinado obtendremos la descripción del mismo.
+
+### Jobs y CronJobs
+
+Los recursos Jobs y CronJobs son recursos que permiten ejecutar tareas en un clúster.
+
+* Un Job es un objeto que crea uno o más Pods en Kubernetes/OpenShift para ejecutar una tarea. Los jobs se utilizan comúnmente para realizar trabajos puntuales o tareas que no necesitan ejecutarse de manera continua.
+  
+* Por otro lado, un CronJob es un objeto que crea jobs de manera programada en un clúster de Kubernetes/OpenShift. Los CronJobs se utilizan para realizar tareas de manera repetitiva, según un horario establecido.
+
+**Jobs**
+
+Vamos a ejecutar un recurso Job que simplemente crea un Pod para calcular el valor del numero pi con 200 decimales. La definición del recurso la tenemos guardada en el fichero job.yaml:
+
+```
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pi
+spec:
+  template:
+    spec:
+      containers:
+      - name: pi
+        image: perl:5.34.0
+        command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+      restartPolicy: Never
+  backoffLimit: 4
+```
+
+* El valor de restartPolicy se establece en Never, lo que significa que el Pod no se reiniciará después de que se complete la tarea del contenedor.
+* En el parámetro backoffLimit indicamos el número de intentos que se van a ejecutar antes de determinar que la tarea ha fallado.
+  
+Vamos a ejecutar el recurso Job, y comprobamos que cuando termina el Pod está en estado Completado y que podemos acceder al resultado del cálculo:
+
+```
+oc apply -f job.yaml 
+
+oc get pod
+NAME       READY   STATUS      RESTARTS   AGE
+pi-bkk2b   0/1     Completed   0          21s
+
+oc logs job/pi
+3.14159...
+```
+
+**CronJobs**
+
+En este caso se ejecuta una tarea periódicamente. Vamos a ver un ejemplo, que tenemos definido en el fichero cronjob.yaml:
+
+```
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hello
+spec:
+  schedule: "* * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: hello
+            image: busybox:1.28
+            imagePullPolicy: IfNotPresent
+            command:
+            - /bin/sh
+            - -c
+            - date; echo Hello from the OpenShift cluster
+          restartPolicy: OnFailure
+```
+
+Ejecutamos el CronJob, esperamos varios minutos y vemos cómo se han creado varios recursos cada minuto:
+
+```
+oc apply -f cronjob.yaml
+
+oc get all
+```
+
+### Horizontal Pod AutoScaler
+
+El recurso Horizontal Pod AutoScaler nos permite variar el número de Pods desplegados mediante un Deployment en función de diferentes métricas: por ejemplo el uso de la CPU o la memoria.
+
+En este ejemplo vamos a desplegar un servidor web y le vamos asociar un recurso Horizontal Pod AutoScaler que permitirá autoescalar el despliegue por el uso de la CPU.
+
+En primer lugar, vamos a crear el recurso Deployment que tenemos definido en el fichero deployment-hpa.yaml:
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: bitnami/nginx
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "64Mi"
+          limits:
+            cpu: "500m"
+            memory: "128Mi"
+```
+
+En este ejemplo, hemos indicado los recursos que necesita el contenedor:
+
+* **requests:** Es la cantidad mínima de recursos que un contenedor necesita para poder funcionar correctamente. Kubernetes / OpenShift garantiza que los nodos en los que se ejecuten los Pods reserven al menos los recursos solicitados. Si no hay suficientes recursos disponibles, Kubernetes / OpenShift no planificará el Pod en ese nodo.
+  
+* **limits:** Es la cantidad máxima de recursos que un contenedor puede utilizar. Kubernetes / OpenShift impone estos límites para evitar que un contenedor utilice más recursos de los que realmente necesita. Si un contenedor intenta utilizar más recursos que los límites especificados, Kubernetes limitará su uso de recursos.
+  
+Vemos que hemos reservado para cada Pod 200m (200 milicpus). En Kubernetes / OpenShift, la unidad de CPU se llama "CPU" o "core", y se expresa como una fracción de un núcleo de CPU completo. La unidad de medida "milicpu" (mCPU) es una fracción de una CPU. Si un contenedor necesita 200 milicpus, solicita 0.2 CPU o 1/5 de un núcleo de CPU.
+
+Ahora asignamos el recurso Horizontal Pod AutoScaler, que tenemos definido en el fichero hpa.yaml:
+
+```
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nginx
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nginx
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          averageUtilization: 50
+          type: Utilization
+```
+
+* Indicamos el Deployment con el que está relacionado, parámetro scaleTargetRef.
+* Indicamos el número máximo y mínimo de Pods que va a controlar: minReplicas y maxReplicas.
+* Y en este ejemplo indicamos el objetivo que hay que alcanzar para que se produzca la creación automática de nuevos Pods. Lo indicamos con el parámetro metrics.
+* El parámetro targetCPUUtilizationPercentage define el objetivo de uso de la CPU para el pod. Es decir, si su valor es 50%:
+ - Si el uso de la CPU del Pod es menor al 50%, el HPA puede intentar escalar hacia abajo el número de réplicas del Pod para ahorrar recursos.
+ - Si el uso de la CPU del Pod es mayor al 50%, el HPA puede intentar escalar hacia arriba el número de réplicas para manejar la carga.
+  
+Creamos el despliegue, creamos el recurso Horizontal Pod AutoScaler y creamos un recurso Service y un recurso Route para acceder al servicio:
+
+```
+oc apply -f deployment-hpa.yaml
+oc apply -f hpa.yaml
+oc expose deploy/nginx
+oc expose service/nginx
+```
+
+Vamos a comprobar si funciona el HPA, para ello vamos a usar la herramienta Apache Benchmark (ab) (en sistemas operativos Debian/Ubuntu esta herramienta se encuentra en el paquete apache2-utils) para realizar peticiones al servidor web.
+
+En una terminal, podemos monitorizar la creación de Pods:
+
+```
+watch oc get pod
+```
+
+En otro terminal podemos obtener información del recurso HPA:
+
+```
+watch oc get hpa/nginx
+```
+
+Y en otro terminal, podemos ejecutar la herramienta ab, podemos hacer 100000 peticiones con 100 concurrentes:
+
+```
+ab -n 100000 -c 100 -k http://nginx-josedom24-dev.apps.sandbox-m3.1530.p1.openshiftapps.com/index.html
+```
+
+Esperamos unos minutos hasta que las métricas empiezan a ofrecer resultado y el campo TARGETS del recurso Horizontal Pod AutoScaler empiece a aumentar.
+
+
+
+
+
+
+
+
+
+
 
 
 
