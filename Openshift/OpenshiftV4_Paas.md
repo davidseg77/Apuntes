@@ -1844,6 +1844,729 @@ oc get route app
 Los pesos también se pueden modificar de manera muy sencilla desde la consola web editando la definición del objeto Route.
 
 
+## 5. Plantillas: empaquetando los objetos en OpenShift
+
+### Introducción a los Templates
+
+También podemos obtener la lista de templates que se encuentran en el proyecto openshift, ejecutando la siguiente instrucción:
+
+``` 
+oc get templates -n openshift
+```
+
+Si queremos desplegar la aplicación ejemplo nodejs podemos usar la plantilla nodejs-postgresql-example. Para ver los parámetros que podemos configurar, ejecutamos:
+
+``` 
+oc process --parameters nodejs-postgresql-example -n openshift
+```
+
+Sólo vamos a definir el parámetro NAME para indicar el nombre de la aplicación durante la creación. Para ello, ejecutamos
+
+``` 
+oc new-app nodejs-postgresql-example -p NAME=app-nodejs
+```  
+
+Comprobamos los recursos que ha creado la plantilla:
+
+``` 
+oc get all -o name
+pod/app-nodejs-1-build
+pod/app-nodejs-1-deploy
+pod/app-nodejs-1-lsdhb
+pod/postgresql-1-deploy
+pod/postgresql-1-x8kn6
+replicationcontroller/app-nodejs-1
+replicationcontroller/postgresql-1
+service/app-nodejs
+service/modelmesh-serving
+service/postgresql
+deploymentconfig.apps.openshift.io/app-nodejs
+deploymentconfig.apps.openshift.io/postgresql
+buildconfig.build.openshift.io/app-nodejs
+build.build.openshift.io/app-nodejs-1
+imagestream.image.openshift.io/app-nodejs
+route.route.openshift.io/app-nodejs
+``` 
+
+Esperamos a que la imagen se construya, y accedemos a la aplicación.
+
+### Descripción de un objeto Template
+
+Vamos a crear un objeto Template desde su definición en un fichero YAML. En este ejemplo vamos a hacer un Template muy sencillo, que nos va a permitir crear un recurso Deployment usando la imagen bitnami/mysql y como veremos posteriormente hemos creado varios parámetros para permitir su configuración. Partimos del fichero mysql-plantilla.yaml con el siguiente contenido:
+
+```  
+apiVersion: template.openshift.io/v1
+kind: Template
+labels:
+  app: deployment-mysql
+metadata:
+  name: mysql-plantilla
+  annotations:
+    description: "Plantilla para desplegar un deployment de mysql"
+    iconClass: "icon-mysql-database"
+    tags: "database,mysql"
+objects:
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: ${NOMBRE_APP}
+  spec:
+    replicas: ${{REPLICAS}}
+    selector:
+      matchLabels:
+        app: mysql
+    template:
+      metadata:
+        labels:
+          app: mysql
+      spec:
+        containers:
+          - name: ${NOMBRE_CONTENEDOR}
+            image: bitnami/mysql  
+            env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: ${ROOT_PASSWORD}
+            - name: MYSQL_USER
+              value: ${USER}
+            - name: MYSQL_PASSWORD
+              value: ${PASSWORD}
+            - name: MYSQL_DATABASE
+              value: ${DATABASE}
+            ports:
+            - containerPort: 6379
+              protocol: TCP
+parameters:
+- name: REPLICAS
+  description: Número de pods creados
+  value: "1"
+- name: NOMBRE_APP
+  description: Nombre del pod que se va a crear
+  from: 'mysql[0-9]{2}'
+  generate: expression
+- name: NOMBRE_CONTENEDOR
+  description: Nombre del contenedor que se va a crear
+  value: contenedor-mysql
+- name: ROOT_PASSWORD
+  description: Contraseña del root de mysql
+  from: '[A-Z0-9]{8}'
+  generate: expression
+- name: USER
+  description: Nombre del usuario mysql que se va acrear
+  value: usuario
+- name: PASSWORD
+  description: Contraseña del usuario de mysql
+  from: '[A-Z0-9]{8}'
+  generate: expression
+- name: DATABASE
+  description: Nombre de la base de datos que se va a crear
+  value: nueva_bd
+```
+
+Veamos cada uno de los apartados que tiene la configuración:
+
+* labels: Indicamos las etiquetas que tendrán todos los objetos que vamos a crear.
+* metadata: Tiene las secciones que normalmente tiene esta sección en la definición de cualquier objeto. En este caso nos vamos a fijar en las anotaciones (annotations):
+ - description: Definimos una descripción de lo que hace la plantilla.
+ - iconClass: Indicamos el icono que se mostrará en el catálogo de aplicaciones. Más iconos.
+ - tags: Etiquetas asignadas a la plantilla, que facilitan su búsqueda en el catálogo.
+Hay más posibles anotaciones que puedes estudiar en la documentación.
+* objects: Definimos los objetos que se van a crear al instanciar la plantilla.
+* parameters: Definimos los parámetros que hemos indicado en la definición de los objetos. A la hora de instanciar la plantilla estos parámetros se pueden sobreescribir. Algunos de los atributos que podemos poner de cada parámetro:
+ - name: Nombre del parámetro.
+ - description: Descripción del parámetro.
+ - value: Valor por defecto. Si no indico el parámetro al crear los objetos del Template tomará el valor por defecto.
+ - from: Expresión regular que se usa para generar un valor aleatorio, si no indicamos el valor del parámetro. Va acompañado del atributo generate: expression.
+  
+Como vemos los parámetros se pueden indicar de dos formas:
+
+* ${NOMBRE_PARÁMETRO}: El valor se proporciona como una cadena de caracteres. Normalmente usamos esta forma.
+* ${{NOMBRE_PARÁMETRO}}: El valor se puede proporcionar como un valor que no sea una cadena de caracteres. Lo hemos usado para indicar el número de replicas, que en la definición tiene que ser un número entero (no se entrecomilla).
+  
+Por último para crear el objeto Template a partir de su definición, ejecutamos:
+
+```
+oc apply -f mysql-plantilla.yaml
+``` 
+
+Y podemos ver que realmente la hemos creado, desde la línea de comandos:
+
+```
+oc get templates
+```
+
+### Crear objetos desde un Template
+
+Si queremos ver los parámetros que podemos configurar en la plantilla, ejecutamos:
+
+```
+oc process --parameters mysql-plantilla
+``` 
+
+Podemos generar la definición de los objetos que crea un Template. La generación de la definición de los objetos no implica su creación. Veamos algunos ejemplos:
+
+Genero la definición en formato YAML de los objetos sin indicar ningún parámetro (se cogen los valores por defecto):
+
+```
+ oc process mysql-plantilla -o yaml
+```
+
+Podemos indicar algunos parámetros en la generación de la definición. Los parámetros que no indiquemos cogerán sus valores por defecto:
+
+```  
+ oc process mysql-plantilla -o yaml -p REPLICAS=2 -p NOMBRE_APP=mimysql -p ROOT_PASSWORD=asdasd1234
+```
+
+Si tenemos muchos parámetros podemos guardar los parámetros en un fichero, por ejemplo en parametros-mysql.txt:
+
+``` 
+ REPLICAS=3
+ NOMBRE_APP=otra_mysql
+ NOMBRE_CONTENEDOR=contenedor1
+ ROOT_PASSWORD=asdasd1234
+ USER=usuario
+ PASSWORD=mypassword
+ DATABASE=mi_bd
+```  
+
+Podemos usar este fichero para indicar los parámetros de la siguiente forma:
+
+``` 
+ oc process mysql-plantilla -o yaml --param-file=parametros-mysql.txt
+``` 
+
+Además, de los parámetros, al generar la definición de los objetos podemos indicar las labels que tendrán todos los objetos generados:
+
+```
+ oc process mysql-plantilla -o yaml -l type=database
+```
+
+Evidentemente, podemos definir parámetros y etiquetas:
+
+```  
+ oc process mysql-plantilla -o yaml -p REPLICAS=2 -l type=database
+```
+
+Una vez que sabemos como generar la definición de los objetos que están definido en una plantilla, tenemos varias formas para crearlos:
+
+1. Generar la definición de los objetos de la plantilla (si es necesario indicado parámetros y etiquetas) y ejecutando oc apply sobre la definición generada, por ejemplo:
+
+```  
+ oc process mysql-plantilla -o yaml -p REPLICAS=2 -p NOMBRE_APP=mimysql | oc apply -f -
+```
+
+2. Guardar la generación de la definición de los objetos en un fichero YAML, y utilizar este fichero para crear los objetos. Esta opción tiene dos ventajas: que podemos reproducir el despliegue y que podemos eliminar los objetos utilizando el fichero YAML. Por ejemplo:
+
+```  
+ oc process mysql-plantilla -o yaml -p NOMBRE_APP=app1 -p REPLICAS=3 -l type=database > deploy_mysql.yaml        
+ oc apply -f deploy_mysql.yaml
+```
+
+3. Utilizando el comando oc new-app:
+
+```
+ oc new-app mysql-plantilla -p NOMBRE_APP=new-mysql
+```
+
+ **Prueba de funcionamiento**
+
+Creamos un Deployment a partir del Template. Para ello, indicamos sólo dos parámetros:
+
+```
+oc process mysql-plantilla -p NOMBRE_APP=mysql -p PASSWORD=asdasd | oc apply -f -
+```
+
+A continuación intentamos acceder a la base de datos, ejecutando:
+
+```
+oc exec -it deploy/mysql -- mysql -u usuario -pasdasd nueva_bd -h localhost
+...
+mysql>
+```
+
+### Creación de plantillas a partir de objetos existentes
+
+**Crear Templates a partir de Templates existentes**
+
+Esta operación es muy sencilla, y simplemente consiste en copiar la definición YAML de un Template en un fichero y posteriormente hacer las modificaciones que necesitemos. Por ejemplo:
+
+```
+oc get template mysql-plantilla -o yaml > nueva_plantilla.yaml
+```
+
+Otro ejemplo que nos permite hacer una copia de una plantilla del catálogo de aplicaciones de de OpenShift:
+
+```
+oc get template mariadb-ephemeral -n openshift -o yaml > otra-plantilla.yaml
+```
+
+**Crear Templates a partir de objetos existentes**
+
+Vamos a imaginar que hemos desplegado una aplicación PHP que tenemos guardada en un repositorio. Para ello hemos ejecutado el comando:
+
+```
+oc new-app php~https://github.com/josedom24/osv4_php --name=app-php --as-deployment-config=true
+oc expose service app-php
+```
+
+Como ya sabemos estas dos instrucciones han creado varios tipos de objetos: DeploymentConfig, BuildConfig, ImageStream, Service y Route.
+
+Ahora queremos diseñar un Template que nos permita desplegar aplicaciones PHP que estén guardadas en repositorios GitHub. A partir de la definición de los objetos que hemos creado, podemos crear la definición de un Tempalate, estableciendo los parámetros que queramos configurar posteriormente. Para ello podemos ejecutar la instrucción:
+
+```
+oc get -o yaml all > php-plantilla.yaml
+```
+
+En el fichero php-plantilla.yaml tendremos la lista de las definiciones de los objetos, en el próximo apartado veremos cómo lo convertimos en la definición de un Template.
+
+
+### Uso de Helm en OpenShift desde la línea de comandos
+
+**Instalación de Helm chart**
+
+Si accedemos a la consola web, en la parte superior derecha lel botón ? y la opción Command line tools, nos aparece la página web de descarga del Helm CLI: Download Helm.
+
+Podemos descargarnos la versión que necesitemos y copiar el binario en un directorio del PATH, por ejemplo en Linux:
+
+```
+wget -O helm https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/helm/latest/helm-linux-amd64 
+sudo install helm /usr/local/bin
+
+helm version
+```  
+
+Desde el cliente helm podemos gestionar el ciclo de vida de las aplicaciones instaladas en nuestro clúster:
+
+```
+helm ls
+```
+
+Los repositorios de charts son independientes, es decir, no están sincronizados. Por ejemplo, cuando acabamos de instalar helm no tiene repositorios instalados:
+
+```
+helm repo list
+Error: no repositories to show
+```
+
+Para añadir el repositorio de charts de OpenShift y actualizarlo, ejecutamos:
+
+```
+helm repo add openshift https://charts.openshift.io/
+
+helm repo update
+```
+
+Y ahora podemos buscar los charts ejecutando:
+
+```
+helm search repo jenkins
+```
+
+Y para buscar información acerca de ese chart:
+
+```
+helm show all openshift/redhat-jenkins
+```
+
+**Instalación de un chart helm desde la línea de comandos**
+
+Podemos buscar más repositorios de charts explorando la página Artifact Hub, por ejemplo podemos añadir el repositorio de charts de Bitnami de la siguiente manera:
+
+```
+helm repo add bitnami https://charts.bitnami.com/bitnami
+"bitnami" has been added to your repositories
+```
+
+Y podemos comprobar que hemos añadido un nuevo repositorio:
+
+```
+helm repo list
+```
+
+Actualizamos la lista de charts ofrecidos por los repositorios:
+
+```
+helm repo update
+```
+
+Como hemos comentado anteriormente, los charts los podemos buscar en la página Artifact Hub o los podemos buscar desde la línea de comandos, por ejemplo si queremos buscar un chart relacionado con nginx:
+
+```
+helm search repo nginx
+```
+
+¿Y cómo sabemos los parámetros que tiene definido cada chart y sus valores por defecto?. Estudiando la documentación del chart en Artifact Hub. En concreto para el chart con el que estamos trabajando, accediendo a su página de de documentación. También podemos obtener esta información ejecutando el siguiente comando:
+
+```
+helm show all bitnami/nginx
+```
+
+Vamos a desplegar este chart modificando el parámetro service.type como ClusterIP ya que luego crearemos un recurso Route para acceder a él.
+
+```
+helm install web bitnami/nginx --set service.type=ClusterIP 
+```
+
+Podemos listar los charts que tenemos instalados:
+
+```
+helm ls
+```
+
+Los nombres de los recursos que se han creado son del tipo `-, por ejemplo:
+
+```
+oc get all -o name
+service/web-nginx
+deployment.apps/web-nginx
+...
+```
+
+Podemos crear la ruta de acceso:
+
+```  
+oc expose service/web-nginx
+```
+
+Y acceder para comprobar que funciona. Finalmente podemos borrar la aplicación desplegada con:
+
+```
+helm uninstall web
+```
+
+## 6. Almacenamiento en OpenShift v4
+
+### Ejemplo 1: Gestión de almacenamiento desde la consola web: phpsqlitecms 
+
+En este ejemplo, vamos a instalar un CMS PHP llamado phpSQLiteCMS que utiliza una base de datos SQLite. Para ello vamos a utilizar el código de la aplicación que se encuentra en el repositorio: https://github.com/ilosuna/phpsqlitecms.
+
+Vamos a realizar el despliegue desde la línea de comandos:
+
+```
+oc new-app php:7.3-ubi7~https://github.com/ilosuna/phpsqlitecms --name=phpsqlitecms
+oc expose service/phpsqlitecms
+```
+
+Se han creado los recursos y podemos acceder a la aplicación.
+
+**Modificación de la aplicación**
+
+A continuación, vamos a entrar en la zona de administración, en la URL /cms, y con el usuario y contraseña: admin - admin vamos a realizar un cambio (por ejemplo el nombre de la página) que se guardará en la base de datos SQLite.
+
+**Volúmenes persistentes**
+
+Necesitamos un volumen para guardar los datos de la base de datos. Vamos a crear un volumen y lo vamos a montar en le directorio /opt/app-root/src/cms/data, que es donde se encuentra la base de datos. Para ello vamos a crear un objeto PersistentVolumenClaim que nos permitirá crear un PersistentVolumen que asociaremos al Deployment. Lo vamos a hacer desde la consola web, desde la vista Administrator, escogemos la opción Storage -> PersistentVolumenClaims y creamos un nuevo objeto.
+
+A continuación, añadimos almacenamiento al despliegue, indicando el objeto PersistentVolumenClaim que hemos creado, y el directorio donde vamos a montar el volumen. Se ha actualizado el despliegue, se ha creado un nuevo Pod con la nueva versión (el volumen montado en el directorio) y podemos comprobar que el PersistentVolumenClaim se ha asociado con un PersistentVolumen.
+
+La aplicación no está funcionando bien. ¿Qué ha pasado?. Al montar el volumen en el directorio /opt/app-root/src/cms/data, el contenido anterior, correspondiente a los ficheros de la base de datos se ha perdido. Tenemos que copiar en este directorio (en realidad en el volumen) los ficheros necesarios, para ello vamos a copiarlos desde el repositorio:
+
+```
+git clone https://github.com/ilosuna/phpsqlitecms
+cd phpsqlitecms/cms
+
+oc get pod
+``` 
+
+```
+oc cp data phpsqlitecms-687b8ff8cd-sqcdm:/opt/app-root/src/cms
+```
+
+Y volvemos a comprobar si está funcionando la aplicación.
+
+**Estrategias de despliegue y almacenamiento**
+
+¿Qué ocurrirá si volvemos actualizar el despliegue, creando un nuevo Pod? Lo vamos a realizar desde el entorno web seleccionando la acción Restart rollout. Se crea un nuevo Pod, pero no termina de estar en estado de ejecución.
+
+Si vemos los eventos del pod, nos aclara el problema que ha existido. El problema es el siguiente:
+
+* El volumen que se ha creado no permite que dos Pods estén conectados simultáneamente a él Esto es debido al tipo de volumen, en nuestro caso: AWS Elastic Block Store (EBS).
+* La estrategia de despliegue **RolligUpdate** crea el nuevo Pod, comprueba que funciona para posteriormente eliminar el viejo. Pero en este caso, no puede terminar de crear el nuevo Pod, porque no se puede conectar al volumen mientras el antiguo Pod este conectado a él.
+  
+La solución es configurar la estrategia de despliegue a Recreate, al eliminar el Pod antiguo, el Pod nuevo se puede conectar al volumen sin problemas. Para ello:
+
+```
+oc edit deploy/phpsqlitecms
+...
+spec:
+...
+  strategy:
+    type: Recreate
+```
+
+Y volvemos realizar la actualización del despliegue:
+
+```  
+oc rollout restart deploy/phpsqlitecms
+
+oc get pod
+```
+
+Como vemos se ha creado un nuevo Pod sin problemas.
+
+**Escalado y almacenamiento**
+
+Como hemos indicado el almacenamiento ofrecido por Red Hat OpenShift Dedicated Developer Sandbox no permite que varios Pods estén simultáneamente conectado a un mismo volumen, no proporciona almacenamiento compartido.
+
+De la misma manera, el nuevo Pod que se está creando no termina de crearse por que no se puede conectar al volumen, que ya está conectado al primer Pod. Por lo tanto concluimos, que con este tipo de almacenamiento, no podemos escalar los despliegues.
+
+### Ejemplo 2: Gestión de almacenamiento desde la línea de comandos: GuestBook
+
+En esta tarea vamos a desplegar una aplicación web que requiere de dos servicios para su ejecución. La aplicación se llama GuestBook y necesita los siguientes servicios:
+
+* La aplicación GuestBook es una aplicación web desarrollada en python que tenemos guardada en el repositorio https://github.com/josedom24/osv4_guestbook.git.
+* Esta aplicación guarda la información en una base de datos no relacional redis, que utiliza el puerto 6379/tcp para recibir las conexiones. Usaremos la imagen bitnami/redis.
+  
+Por lo tanto para desplegar las aplicaciones vamos a ejecutar los siguientes comandos:
+
+```
+oc new-app https://github.com/josedom24/osv4_guestbook.git --name=guestbook
+oc new-app bitnami/redis  -e REDIS_PASSWORD=mypass --name=redis
+```
+
+A continuación, creamos la ruta para acceder a GuestBook y comprobamos que funciona:
+
+```
+oc expose service/guestbook
+```
+
+**Persistencia de la información**
+
+En primer lugar vamos a crear un objeto PersistentVolumeClaim que nos va permitir solicitar la creación de un PersistentVolume, para ello usamos la definición del objeto que tenemos en el fichero pvc-redis.yaml:
+
+```
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: my-pvc-redis
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+```
+
+Y creamos el objeto, ejecutando:
+
+```
+oc apply -f pvc-redis.yaml
+```
+
+Podemos ver que se ha creado el objeto, pero que no se va asociar a un volumen hasta que no se utilice:
+
+```
+oc get pvc
+```
+
+A continuación tenemos que modificar el despliegue de la aplicación GuestBook, para cambiar la estrategia de despliegue, asociar el volumen e indicar el directorio de montaje, para ello editamos el Deployment redis y lo dejamos con las siguientes modificaciones:
+
+```
+oc edit deploy/redis
+
+spec:
+...
+  strategy:
+    type: Recrete
+template:
+...
+  spec:
+    containers:
+    ...
+      volumeMounts:
+        - mountPath: /bitnami/redis/data
+          name: my-volumen
+      ...
+    volumes:
+      - name: my-volumen
+        persistentVolumeClaim:
+          claimName: my-pvc-redis
+``` 
+
+Cuando modificamos el Deployment, se produce una actualización: se creará un nuevo ReplicaSet que creará un nuevo Pod con la nueva configuración.
+
+```  
+oc get rs
+
+oc get pod
+```
+
+Puedes ver las características del Pod, ejecutando:
+
+```
+oc describe pod/redis-7f59bf9479-mm76b
+```
+
+Accede de nuevo a la aplicación, introduce algunos mensajes, y vamos a simular la eliminación del Pod:
+
+``` 
+oc delete pod/redis-7f59bf9479-mm76b
+``` 
+
+Inmediatamente se creará un nuevo Pod, volvemos acceder y comprobar que la información no se ha perdido.
+
+
+### Ejemplo 3: Haciendo persistente la aplicación Wordpress
+
+**Base de datos persistente**
+
+Para obtener una base de datos persistente vamos a crear una aplicación de base de datos a partir de una plantilla que cree y configure un volumen. Por ejemplo, vamos a usar la plantilla mariadb-persistent:
+
+```
+oc process --parameters mariadb-persistent -n openshift
+```
+
+Y creamos el despliegue, ejecutando:
+
+```
+oc new-app mariadb-persistent -p MYSQL_USER=usuario \ 
+                              -p MYSQL_PASSWORD=asdasd \
+                              -p MYSQL_DATABASE=wordpress \
+                              -p MYSQL_ROOT_PASSWORD=asdasd \
+                              -p VOLUME_CAPACITY=5Gi
+```
+
+Podemos comprobar que se ha creado un objeto PersistentVolumeClaim asociado a un PersistentVolume:
+
+```
+oc get pvc
+```
+
+Y que efectivamente está montado en un directorio de los Pods:
+
+```
+oc describe dc/mariadb
+```
+
+**Wordpress persistente**
+
+Vamos a desplegar Wordpress y posteriormente, crearemos un nuevo volumen para guardar los datos del blog. Este volumen habrá que montarlo en el directorio /bitnami/wordpress.
+
+Para desplegar el Wordpress usando un DeploymentConfig:
+
+```
+oc new-app bitnami/wordpress -e WORDPRESS_DATABASE_NAME=wordpress -e  WORDPRESS_DATABASE_HOST=mariadb -e WORDPRESS_DATABASE_USER=usuario -e WORDPRESS_DATABASE_PASSWORD=asdasd --name wordpress --as-deployment-config=true
+```
+
+En primer lugar cambiamos la estrategia de despliegue, para evitar el problema que hemos visto en ejemplos anteriores:
+
+```
+oc patch dc/wordpress --patch '{"spec":{"strategy":{"type":"Recreate"}}}'
+```
+
+A continuación, creamos un PersistentVolumeClaim usando la definición que tenemos en el fichero pvc-wordpress.yaml:
+
+```
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: my-pvc-wordpress
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+```
+
+Creamos el PersistentVolumeClaim y añadimos el almacenamiento al despliegue:
+
+```
+oc apply -f pvc-wordpress.yaml
+
+oc set volumes dc/wordpress --add -m /bitnami/wordpress --name=vol-wordpress -t pvc --claim-name=my-pvc-wordpress --overwrite
+```
+
+Comprobamos los dos volúmenes que hemos creado:
+
+``` 
+oc get pvc
+``` 
+
+Y que efectivamente hemos asociado un volumen al DeploymentConfig montado en el directorio /bitnami/wordpress:
+
+```
+oc describe dc/wordpress
+``` 
+
+Finalmente creamos la ruta y accedemos a la aplicación:
+
+```
+oc expose service/wordpress
+```
+
+Ahora podemos entrar en la zona de administración (en la URL /wp-admin) y usando las credenciales por defecto, usuario y contraseña: user - bitnami, podemos crear una nueva entrada con una imagen.
+
+Finalmente podemos actualizar los dos despliegues:
+
+```
+oc rollout latest dc/mariadb
+oc rollout latest dc/wordpress
+```
+
+Y volvemos acceder a la aplicación para comprobar que no hemos perdido la información.
+
+### Instantáneas de volúmenes
+
+Un recurso VolumeSnapshot representa una instantánea de un volumen en un sistema de almacenamiento. Las instantáneas de volumen nos proporciona una forma estandarizada de copiar el contenido de un volumen en un momento determinado sin crear un volumen completamente nuevo.
+
+En la consola web, en la vista de Administrator, en el apartado Storage -> VolumeSnapshotClasses, podemos ver los recursos VolumeSnapshotClasses que están definidos en este clúster.
+
+Para realizar el ejercicio, vamos a desplegar un servidor web nginx asociado a un volumen. La definción de la solicutd del volumen la encontramos en el fichero pvc.yaml con el siguiente contenido:
+
+```
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: my-pvc
+spec:
+  storageClassName: gp2-csi
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+```
+
+Nos aseguramos con el parámetro storageClassName que se utilicen volúmenes del tipo gp2-sci para que el VolumeSnapshotClasses pueda realizar de manera adecuada los snpashots. Ahora, ejecutamos las siguientes instrucciones:
+
+```
+oc apply -f pvc.yaml
+oc new-app bitnami/nginx --name nginx
+oc expose service/nginx
+oc set volumes deploy/nginx --add -m /app --name=my-vol -t pvc --claim-name=my-pvc --overwrite
+oc exec deploy/nginx -- bash -c "echo '<h1>Probando los SnapShots</h1>' > /app/index.html"
+```
+
+A continuación, vamos a crear una instantánea de ese volumen, para ello entramos en la sección Storage -> VolumeSnapshots y pulsamos sobre el botón Create VolumeSnapshot. Indicamos el recurso PersistentVolumeClaim al que queremos crear la instantánea y el nombre de la misma. Y transcurridos unos segundos, podremos ver la lista de las instantáneas de volúmenes que hemos creado.
+
+A partir de la instantánea podemos crear un nuevo volumen con la misma información, para ello escogemos la opción, indicando las propiedades del recurso PersistentVolumeClaim. 
+
+Volvemos a crear un nuevo Deployment:
+
+```
+oc new-app bitnami/nginx --name nginx2
+oc expose service/nginx2
+oc set volumes deploy/nginx2 --add -m /app --name=my-vol -t pvc --claim-name=my-pvc2 --overwrite
+```
+
+Y comprobamos que podemos acceder al fichero index.html, que en esta ocasión no hemos tenido que crear porque se ha restaurado desde la instantánea de volumen.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
