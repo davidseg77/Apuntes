@@ -963,6 +963,898 @@ spec:
     type: ImageChange
 ```
 
+### Actualización manual de un build
+
+En este apartado vamos a aprender los comandos que nos permiten gestionar los procesos de construcción a partir de un objeto BuildConfig. Para ello vamos a crear un BuildConfig usando la estrategia Docker y los ficheros necesarios se encuentra en el repositorio https://github.com/josedom24/osv4_python.
+
+La aplicación muestra los municipios de una provincia, el nombre de la provincia se indica en la variable de entorno PROVINCIA. El fichero Dockerfile crea esta variable con una valor determinado.
+
+Por lo tanto lo primero que vamos a hacer es crear el objeto BuildCondig, para ello:
+
+```
+oc new-build https://github.com/josedom24/osv4_python --name=app4
+
+oc get bc 
+```
+
+Como vemos en el campo LATEST, se indica que se ha creado un build, que de forma automática ha llamado app4-1. Cuando termina la construcción, comprobamos que se ha creado un nuevo ImageStream apuntando a la nueva imagen:
+
+```
+oc get is -o name
+
+imagestream.image.openshift.io/app4
+```
+
+Ahora, podríamos crear una nueva aplicación que utilizará esta nueva imagen que hemos generado (vamos a llamar a la aplicación con el mismo nombre que el build, aunque se podría llamar de forma distinta):
+
+```
+oc new-app app4 --name=app4
+oc expose service app4
+```
+
+**Primera modificación: Modificación de la aplicación**
+
+¿Qué pasa si mi equipo de desarrollo saca una nueva versión de la aplicación y queremos desplegar esta nueva versión?. Para ello vamos a modificar la aplicación y luego vamos a lanzar una nueva construcción:
+
+Modificamos el fichero app/templates/base.html y cambiamos la línea: <h1>Temperaturas: {{prov}}</h1> por esta otra <h1>Temperaturas: {{prov}} Versión 2</h1>.
+
+Guardamos los cambios en el repositorio:
+
+```
+ git commit -am "Versión 2"
+ git push
+```
+
+Lanzamos manualmente una nueva construcción de la imagen:
+
+```
+ oc start-build app4
+ build.build.openshift.io/app4-2 started
+
+ oc get bc
+ ```
+
+ Vemos como tenemos en ejecución otro Pod constructor (app4-2-build) donde se está creando la nueva imagen.
+
+¿Qué ha ocurrido al finalizar la construcción de la nueva imagen? El despliegue se ha actualizado, al cambiar la imagen de origen, y por tanto ha creado un nuevo recurso ReplicaSet que ha creado un nuevo Pod:
+
+```
+ oc get rs
+
+ oc get pod
+```
+
+Si accedemos a la aplicación vemos la modificación.
+
+**Segunda modificación: Modificación del valor de la variable de entorno**
+
+¿Qué pasa si modificamos el fichero Dockerfile, por ejemplo para cambiar el valor de la variable de entorno? De la misma forma, habrá que construir una nueva imagen, y desplegarla de nuevo.
+
+Modifica el fichero Dockerfile y cambia el valor de la variable de entorno: ENV PROVINCIA=cadiz.
+
+Guardamos los cambios en el repositorio:
+
+``` 
+ git commit -am "Modificación Dockerfile"
+ git push
+```
+
+Lanzamos manualmente una nueva construcción de la imagen:
+
+```
+ oc start-build app4
+
+ oc get bc
+
+ oc get build
+
+ oc get pod
+```
+
+Al terminar la construcción de la imagen, se ha actualizado el Deployment:
+
+```
+ oc get rs
+
+ oc get pod
+```
+
+Si accedemos a la aplicación vemos la modificación.
+
+**Otras operaciones**
+
+Podemos cancelar una construcción ejecutando la instrucción oc cancel-build:
+
+```
+oc start-build app4 
+build.build.openshift.io/app4-5 started
+
+oc cancel-build app4-5
+build.build.openshift.io/app4-5 marked for cancellation, waiting to be cancelled
+```
+
+Por último si borramos el objeto BuildConfig se borrarán todas los objetos Builds y todos los Pods de construcción:
+
+```
+oc delete bc app4
+buildconfig.build.openshift.io "app4" deleted
+
+oc get build
+No resources found in josedom24-dev namespace.
+
+oc get pod
+```
+
+### Construcción de imágenes desde ficheros locales
+
+A este tipo de construcción de imágenes se la llama Binary Build, y nos permite cargar código fuente directamente en un build en lugar de indicar un repositorio Git.
+
+**Ejemplo 1: Construcción de cambios locales del código fuente**
+
+Vamos a crear una aplicación a partir de un repositorio de ejemplo de OpenShift que nos despliega una aplicación construida con Python Flask: https://github.com/devfile-samples/devfile-sample-python-basic.git.
+
+Para ello ejecutamos las siguientes instrucciones:
+
+```
+oc new-app https://github.com/devfile-samples/devfile-sample-python-basic.git --name=app5
+oc expose service app5
+```
+
+Después de construir la imagen, se despliega y podemos acceder a la aplicación
+
+A continuación nos clonamos el repositorio y hacemos un cambio en el código:
+
+```
+git clone https://github.com/devfile-samples/devfile-sample-python-basic.git
+cd devfile-sample-python-basic/
+```
+
+Modificamos el fichero app.py y cambiamos el mensaje Hello World! por otro mensaje.
+
+A continuación vamos a crear una nueva construcción, pero le vamos a indicar que coja los ficheros del directorio donde hemos realizado el cambio, para ello:
+
+```
+oc start-build app5 --from-dir="."
+
+oc get bc
+
+oc get build
+```
+
+Una vez terminada dicha construcción, accedemos de nuevo a la aplicación para asegurarnos que se ha modificado con el nuevo código. Una vez que probemos que los cambios son adecuados, podríamos guardarlos en el repositorio Git.
+
+**Ejemplo 2: Construcción de imagen usando código privado**
+
+En este caso partimos de un código fuente que tenemos en local, no está en ningún repositorio Git.
+
+En un directorio local tenemos un fichero Dockerfile con el siguiente contenido:
+
+```
+FROM centos:centos7
+EXPOSE 8080
+COPY index.html /var/run/web/index.html
+CMD cd /var/run/web && python -m SimpleHTTPServer 8080
+```
+
+Y un dichero index.html:
+
+```
+<html lang="es">
+  <head>
+    <title>Local App</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+  </head>
+  <body>
+    <h1>Curso OpenShift v4</h1>
+    <p>Aplicación local</p>
+  </body>
+</html>
+```
+
+A continuación vamos a crear un BuildConfig de la siguiente manera:
+
+```
+oc new-build --strategy docker --binary  --name app6
+```
+
+Como vemos indicamos la estrategia de construcción, que usará el fichero Dockerfile e indicamos con el parámetro --binary que el código fuente habrá que inyectarlo en cada una de las construcciones. Podemos observar que al crear el objeto BuildConfig no se disparado ningún build:
+
+```
+oc get bc
+```
+
+Tenemos que iniciar la construcción de forma manual indicando donde está el código fuente:
+
+```
+oc start-build app6 --from-dir="."
+
+oc get build
+```
+
+Una vez concluida la construcción comprobamos que se ha creado la imagen, y lanzamos una nueva aplicación:
+
+```
+$ oc get is -o name
+imagestream.image.openshift.io/app6
+
+oc new-app app6
+oc expose service app6
+```
+
+Finalmente, accedemos a la aplicación.
+
+### Construcción de imágenes con Dockerfile en línea
+
+En este tipo de construcción vamos a tener el contenido del fichero Dockerfile dentro de la definición del objeto BuildConfig.
+
+Vamos a ver dos ejemplos:
+
+**Ejemplo 1: BuildConfig con un Dockerfile inline**
+
+Partimos de la definición de un BuildConfig que tenemos en el fichero bc-dockerfile1.yaml:
+
+```
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  labels:
+    app: app7
+  name: app7
+spec:
+  failedBuildsHistoryLimit: 5
+  output:
+    to:
+      kind: ImageStreamTag
+      name: imagen-app7:latest
+  runPolicy: Serial
+  source:
+    dockerfile: |
+      FROM centos:centos7
+      CMD echo 'Hola, estás probando un dockerfile inline' && exec sleep infinity
+    type: dockerfile
+  strategy:
+    dockerStrategy:
+    type: Docker
+  successfulBuildsHistoryLimit: 5
+  triggers:
+  - type: ConfigChange
+  - imageChange: {}
+    type: ImageChange
+```
+
+Creamos el objeto BuildConfig, creando en primer lugar la ImageStream que hemos indicado como salida:
+
+```
+oc create is imagen-app7
+oc apply -f bc-dockerfile1.yaml 
+```
+
+```
+oc get bc
+oc get build
+```
+
+Una vez creada la nueva imagen, podemos desplegarla y comprobar la salida del Pod que se ha creado:
+
+```
+oc new-app imagen-app7 --name=app7
+
+oc logs deploy/app7
+Hola, estás probando un dockerfile inline
+```
+
+**Ejemplo 2: BuildConfig con un Dockerfile sustituido**
+
+En este caso partimos de un repositorio Git donde tenemos una aplicación y un Dockerfile para la creación de la imagen. Sin embargo, vamos a partir del código de ese repositorio pero vamos a sustituir el Dockerfile por uno que tenemos definido en el BuildConfig. Para ello partimos de la definición que tenemos en el fichero bc-dockerfile2.yaml:
+
+```
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  labels:
+    app: app8
+  name: app8
+spec:
+  failedBuildsHistoryLimit: 5
+  output:
+    to:
+      kind: ImageStreamTag
+      name: imagen-app8:latest
+  runPolicy: Serial
+  source:
+    type: Git
+    git:
+      uri: https://github.com/josedom24/osv4_python                    
+    dockerfile: |
+      FROM bitnami/python:3.7
+      WORKDIR /app
+      COPY app /app
+      RUN pip install --upgrade pip
+      RUN pip3 install --no-cache-dir -r requirements.txt
+      ENV PROVINCIA=cadiz
+      EXPOSE 8000
+      CMD [ "python3", "app.py"]
+  strategy:
+    dockerStrategy:
+    type: Docker
+  successfulBuildsHistoryLimit: 5
+  triggers:
+  - type: ConfigChange
+  - imageChange: {}
+    type: ImageChange
+```
+
+No se va a ejecutar el fichero Dockerfile que se encuentra en el repositorio Git, se va a sustituir por el que hemos escrito en la definición anterior. Por la tanto la variable PROVINCIA no será sevilla, tendrá el valor de cadiz, además se ha utilizado otra versión de la imagen base para construir la imagen.
+
+Y ejecutamos:
+
+```
+oc create is imagen-app8
+oc apply -f bc-dockerfile2.yaml
+```
+
+``` 
+oc new-app imagen-app8 --name=app8
+oc expose service app8
+```
+
+Y accedemos a la aplicación.
+
+### Actualización automática de un build
+
+En primer lugar vamos a crear un objeto ImageStream que apuntará a una imagen constructora de PHP, que luego utilizaremos para explicar el trigger ImageChange.
+
+```
+oc import-image mi-php:v1 --from=registry.access.redhat.com/ubi8/php-74 --confirm
+oc new-build mi-php:v1~https://github.com/josedom24/osv4_php --strategy=source --name=app9
+
+oc get build
+```  
+
+Si comprobamos la definición del objeto y nos centramos en la sección triggers:
+
+```
+oc get bc app9 -o yaml
+...
+triggers:
+  - github:
+      secret: -EPtf1InRvdMAwKLd-wY
+    type: GitHub
+  - generic:
+      secret: ys1E_7ah4ghQYY_wUbI0
+    type: Generic
+  - type: ConfigChange
+  - imageChange: {}
+    type: ImageChange
+```
+
+También lo podríamos ver obteniendo información del objeto:
+
+```
+oc describe bc app9
+```
+
+Vemos que tenemos tres posibles disparadores:
+
+* ConfigChange: Permite que se cree una nueva construcción de forma automática cuando se crea el objeto BuildConfig.
+* ImageChange: Permite que se cree una nueva construcción de forma automática cuando está disponible una nueva versión de la imagen constructora.
+* Webhook: Nos permite disparar una nueva construcción de forma automática cuando ocurre un evento (por ejemplo un push) en un servicio externo (por ejemplo, un repositorio GitHub). Este servicio hace una llamada a una URL que nosotros le proporcionamos que produce que se inicie el proceso de construcción.
+
+**Ejemplo de actualización del build por ImageChange**
+
+Seguimos trabajando con el BuildConfig que hemos creado y que ha disparado el primer build al tener configurado el trigger ConfigChange.
+
+```
+oc get build
+```
+
+Comprobamos que se han creado dos ImageStreams, uno que se refiere a la imagen constructora y otro a la imagen generada:
+
+``` 
+oc get is -o name
+imagestream.image.openshift.io/app9
+imagestream.image.openshift.io/mi-php
+```
+
+La imagen constructora que utiliza es mi-php:v1. Si hacemos que esa etiqueta del ImageStream apunte a otra imagen, habremos cambiado la imagen constructora, y debido al trigger ImageChange se volverá a iniciar un nuevo build. En primer lugar voy a eliminar la etiqueta (el objeto ImageStreamTag):
+
+```
+oc delete istag mi-php:v1
+```
+
+Y voy a volver a hacer que referencie a otra imagen:
+
+``` 
+oc import-image mi-php:v1 --from=registry.access.redhat.com/ubi8/php-80
+```
+
+Y comprobamos que se ha iniciado otro build, que construir una nueva imagen:
+
+```
+oc get build
+```
+
+## 4. Deployment us DeploymentConfig
+
+### Creación de un DeployConfig al crear una aplicación
+
+Por ejemplo, si queremos crear un despliegue a partir de la imagen josedom24/test_web:v1 y queremos hacerlo con un DeploymentConfig, ejecutaremos:
+
+```
+oc new-app josedom24/test_web:v1 --name test-web --as-deployment-config=true
+```
+
+Si comprobamos nuestro despliegue:
+
+```
+oc status
+```
+
+Y si vemos los recursos que se han creado:
+
+```
+oc get all
+```
+
+Podemos observar como se ha ejecutado el Pod pod/test-web-1-deploy responsable de crear los Pods del primer despliegue que hemos realizado con el recursos ReplicationController, controlado por el DeploymentConfig.
+
+Podemos ver la descripción de los recursos creados:
+
+```  
+oc describe dc/test-web
+oc describe rc/test-web-1
+```
+
+Por último, creamos el recurso Route y comprobamos el acceso a la aplicación:
+
+```  
+oc expose service/test-web
+```
+
+### Definición de un recurso DeploymentConfig
+
+Podemos ver la definición del recurso DeploymentConfig que hemos creado, ejecutando:
+
+```
+oc get dc/test-web -o yaml
+```
+
+Si eliminamos algunas líneas que no son importantes, nos queda una definición similar a esta:
+
+```
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  labels:
+    app: test-web
+    app.kubernetes.io/component: test-web
+    app.kubernetes.io/instance: test-web
+  name: test-web
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    deploymentconfig: test-web
+  strategy:
+    type: Rolling
+  template:
+    metadata:
+      labels:
+        deploymentconfig: test-web
+    spec:
+      containers:
+      - image: josedom24/test_web@sha256:99db6f7fdcd6aa338d80b5cd926dff8bae50062c49f82c79a3d67d048efb13a4
+        imagePullPolicy: IfNotPresent
+        name: test-web
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        - containerPort: 8443
+          protocol: TCP
+        resources: {}
+  triggers:
+  - type: ConfigChange
+  - imageChangeParams:
+      automatic: true
+      containerNames:
+      - test-web
+      from:
+        kind: ImageStreamTag
+        name: test-web:v1
+        namespace: test-web
+      lastTriggeredImage: josedom24/test_web@sha256:99db6f7fdcd6aa338d80b5cd926dff8bae50062c49f82c79a3d67d048efb13a4
+    type: ImageChange
+```
+
+Podemos indicar algunos detalles importantes:
+
+* La sección metadata define el nombre y las etiquetas para el objeto DeploymentConfig.
+* La sección spec define el recurso ReplicationController que se creará, donde se incluye el número deseado de réplicas (replicas)(en este caso, 1), el límite de historial de revisiones (revisionHistoryLimit) y las etiquetas que seleccionan los Pods que se controlan (selector).
+* La sección template describe la plantilla de Pod que se utilizará para crear nuevas réplicas. Como hemos creado el recurso DeploymentConfig con la instrucción oc new-app se ha creado un recurso ImageStream que es el que se utilizará para indicar la imagen desde la que se creará el contenedor.
+*  La sección triggers define las condiciones bajo las cuales se desencadenará una nueva implementación. En este caso, se definen dos disparadores.
+ - El primer disparador es de tipo ConfigChange, que provocará que se desencadene una nueva implementación si cambian algunos de los parámetros de configuración del DeploymentConfig.
+ - El segundo disparador es de tipo ImageChange, que provocará que se desencadene una nueva implementación si cambia la imagen utilizada por el contenedor. El campo from especifica la fuente de la nueva imagen, en este caso un ImageStreamTag llamado test-web:v1. El campo automatic especifica si el cambio de imagen debe detectarse automáticamente o no.
+
+**Escalado de los Deployments**
+
+Como ocurría con los Deployments, los DeploymentConfig también se pueden escalar, aumentando o disminuyendo el número de Pods asociados. Al escalar un DeploymentConfig estamos escalando el ReplicationController asociado en ese momento:
+
+```
+oc scale dc/test-web --replicas=4
+```
+
+**Otras operaciones**
+
+Si queremos ver los logs generados en los Pods de un DeploymentConfig:
+
+```  
+oc logs dc/test-web
+``` 
+
+Si queremos obtener información detallada del recurso DeploymentConfig que hemos creado:
+
+```  
+oc describe dc/test-web
+``` 
+
+Si eliminamos el DeploymentConfig se eliminarán el ReplicationController asociado y los Pods que se estaban gestionando.
+
+``` 
+oc delete dc/test-web
+```
+
+### Actualización de un DeploymentConfig (rollout)
+
+Para comprobar los distintos motivos de actualización, vamos a lanzar un nuevo despliegue con un DeploymentConfig, para ello ejecutamos:
+
+```
+oc new-app httpd~https://github.com/josedom24/osv4_html --name=web1 --as-deployment-config=true
+```
+
+Se ha creado un nuevo BuildConfig que ha construido la nueva imagen usando Source-to-Image, y al finalizar se ha lanzado la aplicación, como veíamos en el apartado anterior:
+
+```
+oc get dc
+``` 
+
+Creamos el objeto Route y accedemos a la página:
+
+```
+oc expose service web1
+```
+
+**Actualización manual del despliegue**
+
+La primera actualización la vamos a hacer de forma manual, y simplemente vamos a hacer que se actualice el despliegue a partir de la última revisión (no va a existir ningún cambio), para ello:
+
+```  
+oc rollout latest dc/web1
+
+oc get dc,rc,pod
+```
+
+Vemos que ya tenemos dos revisiones (dos actualizaciones), por lo tanto, tenemos dos objetos ReplicationController, dos Pod Deploy y el Pod de la aplicación ha cambiado y tiene un 2 indicando que corresponde a la segunda revisión.
+
+Para ver el estado y el historial de revisiones ejecutamos:
+
+``` 
+oc rollout status dc/web1
+
+oc rollout history dc/web1
+```
+
+Si queremos detalles de un revisión en concreto, ejecutamos:
+
+```
+oc rollout history dc/web1 --revision=2
+``` 
+
+**Actualización por ConfigChange**
+
+En este apartado, vamos a realizar una actualización del despliegue, cambiando la configuración, por ejemplo:
+
+```  
+oc edit dc/web1
+``` 
+
+Y cambiamos el parámetro terminationGracePeriodSeconds (especifica el tiempo que se le dará a un contenedor para finalizar sus tareas y cerrar las conexiones abiertas). Una vez realizado el cambio, el despliegue se empieza a actualizar:
+
+```  
+oc get dc,rc,pod
+
+oc rollout history dc/web1
+```
+
+**Actualización por ImageChange**
+
+Por último, vamos a hacer un cambio en la aplicación, voy a generar una nueva imagen, y el despliegue se actualizará por el cambio de imagen. Para ello, cambiamos el fichero index.html del repositorio git. Una vez realizado el cambio guardo los cambios en el repositorio y genero de nuevo la imagen:
+
+```
+git commit -am "Cambio index.html"
+git push
+``` 
+
+``` 
+oc start-build web1
+``` 
+
+Una vez finalizada la construcción observamos que realmente se actualizado el despliegue:
+
+```  
+oc get dc,rc,pod
+
+oc rollout history dc/web1
+``` 
+
+Podemos acceder a la página para comprobar que se ha modificado.
+
+### Rollback de un DeploymentConfig
+
+Tenemos la posibilidad de volver al estado del despliegue que teníamos en una revisión anterior (Rollback). Para realizar este ejercicio vamos a desplegar una nueva aplicación a partir de una imagen que tenemos en Docker Hub. La imagen josedom24/test_web tiene tres versiones, identificadas por etiquetas.
+
+En este ejercicio, vamos a crear un ImageStream antes de desplegar la aplicación, que nos permitirá ir cambiando de imagen con el uso de un tag, para ello:
+
+```
+oc create is is_test_web
+oc import-image is_test_web:v1 --from=docker.io/josedom24/test_web:v1
+oc import-image is_test_web:v2 --from=docker.io/josedom24/test_web:v2
+oc import-image is_test_web:v3 --from=docker.io/josedom24/test_web:v3
+```
+
+Vamos a crear una nueva etiqueta prod que en primer lugar apuntará a la versión v1 y que utilizaremos para el despliegue, posteriormente iremos referenciando con esta etiqueta otras versiones de la imagen, por lo que se producirá el trigger ImageChange:
+
+```
+oc tag is_test_web:v1 is_test_web:prod
+```
+
+**Creación del DeploymentConfig**
+
+Creamos el DeploymentConfig con la siguiente instrucción:
+
+```
+oc new-app is_test_web:prod --name test-web --as-deployment-config=true
+oc expose service test-web
+```
+
+```
+oc get dc,rc,pod
+
+oc rollout history dc/test-web
+```
+
+**Actualización del despliegue a la versión 2**
+
+Para producir la actualización vamos a cambiar la imagen, para ello vamos a referenciar el tag prod a la segunda versión:
+
+```
+oc tag is_test_web:prod -d
+oc tag is_test_web:v2 is_test_web:prod
+```
+
+Inmediatamente se produce la actualización del despliegue:
+
+```
+oc get dc,rc,pod
+
+oc rollout history dc/test-web
+```
+
+**Rollback del despliegue**
+
+Volvemos a realizar el cambio de imagen para desplegar la tercera versión:
+
+```
+oc tag is_test_web:prod -d
+oc tag is_test_web:v3 is_test_web:prod
+```
+
+Se produce la actualización:
+
+```  
+oc get dc,rc,pod
+
+oc rollout history dc/test-web
+```
+
+Pero ahora, al acceder a la aplicación nos damos cuenta de que tiene un error.
+
+Para volver a la versión anterior podemos ejecutar:
+
+```
+oc rollout undo dc/test-web
+```
+
+Y comprobamos que hemos vuelto a la versión anterior
+
+Realmente podemos volver a la revisión que queramos:
+
+```
+oc rollout undo dc/test-web --to-revision=1
+
+oc rollout history dc/test-web
+```
+
+### Estrategias de despliegues
+
+Vamos a estudiar dos tipos de estrategias:
+
+**Estrategia Rolling Update**
+
+En este tipo de estrategia utiliza una implementación gradual y en cascada para actualizar los Pods: se van creando los nuevos Pods, se comprueba que funcionan, y posteriormente se van eliminando los Pods antiguos. Es la estrategia por defecto. Veamos la configuración de esta estrategia, creando un DeploymentConfig a partir de la ImageStream is-example que tiene otras dos etiquetas apuntando a las distintas versiones:
+
+```
+oc create is is_example
+oc import-image is_example:v1 --from=quay.io/openshifttest/deployment-example:v1
+oc import-image is_example:v2 --from=quay.io/openshifttest/deployment-example:v2
+oc tag is_example:v1 is_example:latest
+```
+
+```
+oc new-app is_example:latest --as-deployment-config=true --name=example
+```
+
+Ahora nos fijamos en la configuración de la estrategia en la definición del objeto:
+
+```
+oc get dc example -o yaml
+strategy:
+    activeDeadlineSeconds: 21600
+    resources: {}
+    rollingParams:
+      intervalSeconds: 1
+      maxSurge: 25%
+      maxUnavailable: 25%
+      timeoutSeconds: 600
+      updatePeriodSeconds: 1
+    type: Rolling
+```
+
+* intervalSeconds: El tiempo de espera entre la comprobación del estado de despliegue después de la actualización.
+* timeoutSeconds: El tiempo de espera máximo para cada actualización de Pod.
+* updatePeriodSeconds: El tiempo de espera entre actualizaciones de Pods individuales.Por defecto, un segundo.
+* maxSurge: El número máximo de Pods nuevos que se pueden crear por encima del número deseado de replicas.
+* maxUnavailable: El número máximo de Pods que se pueden eliminar simultáneamente.
+  
+Vamos a escalar el despliegue y a comprobar el acceso a la aplicación:
+
+```
+oc scale dc/example --replicas=5
+oc expose service/example
+```
+
+A continuación vamos a hacer la actualización del despliegue, para verlo bien puedes poner en una terminal la siguiente instrucción:
+
+```
+watch oc get pod
+``` 
+Y en otra terminal actualizamos la etiqueta latest del ImageStream Para provocar el nuevo despliegue:
+
+```
+oc tag -d is_example:latest
+oc tag is_example:v2 is_example:latest
+```
+
+Finalmente podemos comprobar que tenemos desplegada la versión 2.
+
+**Estrategia Recreate**
+
+En algunas circunstancias, podemos necesitar eliminar todos los Pods antiguos y posteriormente crear los nuevos. Este tipo de estrategia se denomina Recreate.
+
+Vamos a modificar el tipo de estrategia en nuestro DeploymentConfig:
+
+```
+oc edit dc example
+```
+
+Y modificamos la sección strategy y la dejamos así:
+
+```
+strategy:
+    type: Recreate
+```
+
+Ahora vamos a volver a actualizar el despliegue a la versión 1 (recuerda tener en una terminal ejecutando watch oc get pod para ver como se eliminan todos los Pods antes de crear los nuevos):
+
+```
+oc tag -d is_example:latest
+oc tag is_example:v1 is_example:latest 
+```
+
+### Estrategias de despliegues basadas en rutas
+
+En este tipo de estrategia de despliegue configuramos el objeto Route para que enrute el tráfico a distintos Pods de distintos servicios.
+
+Con esta funcionalidad podemos implementar una estrategia de despliegue Blue/Green, podemos ofrecer dos versiones de la aplicación: la nueva (la "verde") se pone a prueba y se evalúa, mientras los usuarios siguen usando la versión actual (la "azul"). El cambio entre versiones se va haciendo gradualmente. Si hay algún problema con la nueva versión, es muy fácil volver a la antigua versión.
+
+**Modificación del objeto Route para servir otra aplicación**
+
+Este tipo de estrategia trabaja con dos objetos Deployment, pero se crea un sólo objeto Route que en un primer momento está conectado al Service del primer despliegue (versión actual de la aplicación). Vamos a crear dos despliegues y vamos a crear la ruta que apunta al primero de ellos:
+
+```
+oc new-app josedom24/citas-backend:v1 --name=app-blue
+oc new-app josedom24/citas-backend:v2 --name=app-green
+```
+
+```
+oc expose svc/app-blue --port=10000 --name=app
+```
+
+En otro terminal, podemos comprobar la versión de la aplicación a la que estamos accediendo, ejecutando:
+
+```
+while true; do curl http://app-josedom24-dev.apps.sandbox-m3.1530.p1.openshiftapps.com/version; done
+```
+
+Si queremos que la ruta nos sirva la nueva aplicación, simplemente tenemos que modificar el Service que tiene configurado.
+
+```
+oc patch route/app -p '{"spec":{"to":{"name":"app-green"}}}'
+```
+
+Vamos a servir la primera versión para continuar con el ejemplo:
+
+``` 
+oc patch route/app -p '{"spec":{"to":{"name":"app-blue"}}}'
+```
+
+**Despliegue Blue/Green basado en rutas**
+
+Ahora podemos configurar la ruta, para que vaya enrutando a los dos Services correspondientes a los dos Deployment. A cada servicio se le asigna un peso y la proporción de peticiones a cada servicio es el peso asignado dividido por la suma de los pesos.
+
+Por ejemplo si queremos que el 75% de las peticiones siga sirviendo la versión actual y el 25% la nueva versión:
+
+```
+oc set route-backends app app-blue=75 app-green=25
+```
+
+Obtenemos información de la ruta y lo comprobamos:
+
+``` 
+oc get route app
+```
+
+Para que sirvan las dos versiones al 50%, podemos usar cualquiera de esta dos posibilidades:
+
+```
+oc set route-backends app app-blue=50 app-green=50
+oc set route-backends app --equal
+```
+
+Y finalmente si sólo queremos servir la nueva versión:
+
+```
+oc set route-backends app app-blue=0 app-green=100
+```
+
+Los pesos se indican con un número de 0 a 256. Podemos indicar el peso para un servicio y hacer que el otro se ajuste de forma automática:
+
+```
+oc set route-backends app app-blue=30 --adjust 
+oc get route app
+```
+
+También podemos indicar los pesos como porcentajes:
+
+```
+oc set route-backends app app-blue=25% --adjust 
+
+oc get route app
+```  
+
+Los pesos también se pueden modificar de manera muy sencilla desde la consola web editando la definición del objeto Route.
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
