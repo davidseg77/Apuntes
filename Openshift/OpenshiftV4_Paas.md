@@ -2552,6 +2552,593 @@ oc set volumes deploy/nginx2 --add -m /app --name=my-vol -t pvc --claim-name=my-
 Y comprobamos que podemos acceder al fichero index.html, que en esta ocasión no hemos tenido que crear porque se ha restaurado desde la instantánea de volumen.
 
 
+## 7. OpenShift Pipelines
+
+### Despliegue de una aplicación con OpenShift Pipeline
+
+**Tekton CLI**
+
+Vamos a usar una herramienta de línea de comandos llamada tkn, puedes seguir las siguientes instrucciones para su instalación.
+
+**Aplicación de ejemplo**
+
+Vamos a desplegar una aplicación muy sencilla de votaciones:
+
+* frontend: Aplicación construida con Python Flask que nos permite votar.
+* backend: Aplicación escrita en Go que nos permite guardar las votaciones.
+En el directorio k8s del repositorio se encuentran los ficheros YAML que posibilitan el despliegue de la aplicación.
+
+**Instalación de Tasks**
+
+Las Tasks consisten en una serie de pasos que se ejecutan de forma secuencial. Las tareas se ejecutan mediante la creación de TaskRuns. Un TaskRun creará un Pod y cada paso se ejecuta en un contenedor independiente dentro del mismo Pod. Podemos definir entradas y salidas para interactuar con otras tareas en el pipeline.
+
+Vamos a instalar dos tareas:
+
+- apply-manifests: responsable de ejecutar los ficheros YAML que se encuentran en el directoriok8s y por lo tanto aplicar los posibles cambios en los recurso que estamos creando.
+- update-deployment: responsable de actualizar el objeto Deployment, en concreto cambiar el nombre y la imagen.
+- 
+Todos los ficheros que vamos a usar están en el repositorio pipelines-tutorial.
+
+Para ello tenemos el fichero 01_apply_manifest_task.yaml con el siguiente contenido y el fichero 02_update_deployment_task.yaml con este contenido.
+
+Creamos las tareas ejecutando:
+
+```
+oc create -f https://raw.githubusercontent.com/josedom24/pipelines-tutorial/master/01_pipeline/01_apply_manifest_task.yaml
+oc create -f https://raw.githubusercontent.com/josedom24/pipelines-tutorial/master/01_pipeline/02_update_deployment_task.yaml
+```
+
+Puedes ver la lista de tareas creadas, ejecutando una de estas dos instrucciones:
+
+```
+oc get tasks
+tkn task ls
+```
+
+Hay tareas predefinidas en el clúster de OpenShift, para obtener la lista podemos ejecutar una de estas dos instrucciones:
+
+```
+oc get clustertasks
+tkn clustertasks ls
+```
+
+**Creando el pipeline**
+
+En este ejemplo, vamos a crear un pipeline que toma el código fuente de la aplicación de GitHub y luego lo construye y despliega en OpenShift.
+
+El fichero 04_pipeline.yaml tiene la definición YAML del pipeline:
+
+```
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: build-and-deploy
+spec:
+  workspaces:
+  - name: shared-workspace
+  params:
+  - name: deployment-name
+    type: string
+    description: name of the deployment to be patched
+  - name: git-url
+    type: string
+    description: url of the git repo for the code of deployment
+  - name: git-revision
+    type: string
+    description: revision to be used from repo of the code for deployment
+    default: master
+  - name: IMAGE
+    type: string
+    description: image to be build from the code
+  tasks:
+  - name: fetch-repository
+    taskRef:
+      name: git-clone
+      kind: ClusterTask
+    workspaces:
+    - name: output
+      workspace: shared-workspace
+    params:
+    - name: url
+      value: $(params.git-url)
+    - name: subdirectory
+      value: ""
+    - name: deleteExisting
+      value: "true"
+    - name: revision
+      value: $(params.git-revision)
+  - name: build-image
+    taskRef:
+      name: buildah
+      kind: ClusterTask
+    params:
+    - name: IMAGE
+      value: $(params.IMAGE)
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    runAfter:
+    - fetch-repository
+  - name: apply-manifests
+    taskRef:
+      name: apply-manifests
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    runAfter:
+    - build-image
+  - name: update-deployment
+    taskRef:
+      name: update-deployment
+    params:
+    - name: deployment
+      value: $(params.deployment-name)
+    - name: IMAGE
+      value: $(params.IMAGE)
+    runAfter:
+    - apply-manifests
+```
+
+Veamos las diferentes tareas que se ejecutan en el pipeline:
+
+* Clona el código fuente de la aplicación desde un repositorio git (git-url y git-revision param) usando el ClusterTask git-clone.
+* Construye la imagen del contenedor de la aplicación utilizando la ClusterTask buildah que utiliza Buildah para construir la imagen.
+* La imagen de la aplicación se envía a un registro de imágenes (parámetro image).
+* La nueva imagen de la aplicación se despliega en OpenShift utilizando las tareas apply-manifests y update-deployment.
+  
+Es posible que haya notado que no hay referencias al repositorio git o al registro de imágenes que se utiliza en el pipeline. Esto se debe a que los pipelines en Tekton están diseñados para ser genéricos y reutilizables. Al activar un pipeline, puedes proporcionar diferentes repositorios git y registros de imágenes para ser utilizados durante la ejecución del pipeline.
+
+En concreto los parámetros que hay que proporcionar son:
+
+* deployment-name: Nombre del despliegue que tiene que coincidir con el que se ha indicado como nombre del Deployment en el fichero YAML correspondiente en el repositorio k8s.
+
+* git-url: URL del repositorio GitHub que queremos desplegar.
+
+* git-revision: Rama del repositorio GitHub, por defecto es master.
+
+* IMAGE: Nombre de la imagen que vamos a construir. En nuestro caso indicaremos el registro interno de OpenShift. Recuerda que el registro interno tiene la siguiente URL, donde hay que indicar el nombre del proyecto, en mi caso:
+
+``` 
+  `image-registry.openshift-image-registry.svc:5000/josedom24-dev`
+```
+
+El orden de ejecución de las tareas está determinado por las dependencias que se definen entre las tareas a través de las entradas y salidas, así como las órdenes explícitas que se definen a través de runAfter.
+
+El campo Workspaces permite especificar uno o más volúmenes que cada Task en el Pipeline requiere durante la ejecución para intercambiar información.
+
+Para crear el pipeline, ejecutamos:
+
+```  
+oc create -f https://raw.githubusercontent.com/josedom24/pipelines-tutorial/master/01_pipeline/04_pipeline.yaml
+```  
+
+Y puedes ver los objetos Pipelines que has creado, ejecutando una de estas dos instrucciones:
+
+```
+oc get pipelines
+tkn pipelines ls
+``` 
+
+Si accedemos a la sección Pipeline de la consola web podemos ver la lista de Pipelines. Y si pulsamos sobre el Pipeline obtenemos información detallada del mismo.
+
+### Gestión de OpenShift Pipeline desde el terminal
+
+**Disparar el pipeline**
+
+Como hemos indicado anteriormente, para que las distintas tareas del pipeline compartan información en el Workspaces, necesitamos asociar un volumen para que se guarde la información de manera compartida entre los distintos Pods que ejecutan las tareas. Para crear el volumen vamos a usar un objeto PersistentVolumeClaim que esta definido en el fichero 03_persistent_volume_claim.yaml y que tiene este contenido.
+
+Para disparar la primera ejecución del Pipeline que creará el primer PipelineRun vamos a usar la herramienta tk, ejecutando la siguiente instrucción para la aplicación backend:
+
+``` 
+tkn pipeline start build-and-deploy \
+    -w name=shared-workspace,volumeClaimTemplateFile=https://raw.githubusercontent.com/josedom24/pipelines-tutorial/master/01_pipeline/03_persistent_volume_claim.yaml \
+    -p deployment-name=pipelines-vote-api \
+    -p git-url=https://github.com/josedom24/pipelines-vote-api.git \
+    -p IMAGE=image-registry.openshift-image-registry.svc:5000/josedom24-dev/pipelines-vote-api \
+    --use-param-defaults
+```
+
+Y ejecutando la siguiente instrucción indicando el nombre del PipelineRun podemos ver los logs de las distintas tareas:
+
+```
+tkn pipelinerun logs build-and-deploy-run-85whr -f -n josedom24-dev
+```
+
+De forma similar, para desplegar el frontend:
+
+```
+tkn pipeline start build-and-deploy \
+    -w name=shared-workspace,volumeClaimTemplateFile=https://raw.githubusercontent.com/josedom24/pipelines-tutorial/master/01_pipeline/03_persistent_volume_claim.yaml \
+    -p deployment-name=pipelines-vote-ui \
+    -p git-url=https://github.com/josedom24/pipelines-vote-ui.git \
+    -p IMAGE=image-registry.openshift-image-registry.svc:5000/josedom24-dev/pipelines-vote-ui \
+    --use-param-defaults
+```
+
+Vemos el Pipeline que hemos creado:
+
+``` 
+tkn pipeline list
+```
+
+Si queremos ver las ejecuciones que se han realizado, es decir los objetos PipelineRun:
+
+```
+tkn pipelinerun list
+``` 
+
+Y sus logs, lo podemos ver:
+
+```
+tkn pipeline logs -f
+```
+
+Podemos ver los recursos que hemos creado, y si accedemos a la aplicación, vemos que está funcionando.
+
+Si haces algún cambio en las aplicaciones y quieres volver a lanzar el despliegue, tendrías que ejecutar:
+
+```
+tkn pipeline start build-and-deploy --last
+``` 
+
+### Instalación de OpenShift Pipeline en CRC
+
+Por defecto la instalación de OpenShift en local no tiene ningún Operador instalado. Los Operadores nos permiten instalar componentes internos de OpenShift que añaden funcionalidades extras a nuestro clúster.
+
+Instalación del operador OpenShift Pipelines desde la consola web
+En la vista Administrator, escogemos la opción Operators->OperatorHub y filtramos con el nombre del operador "OpenShift Pipelines". Nos aparece una ventana con información del operador y pulsamos sobre el botón Install para comenzar la instalación.
+
+Instalamos la última versión del operador etiquetada con latest.
+Al escoger la opción All namespaces on the cluster (default) hacemos que el operador se pueda usar en todos los proyectos.
+Se va a crear un namespace llamado openshift-operators donde se crearán los recursos que va a instalar el operador.
+Se activa la opción de actualizaciones automáticas.
+
+Una vez instalado podemos comprobar que lo tenemos instalado en la opción Operators->Installed Operators. Puedes ver los recursos que se han creado ejecutando:
+
+```  
+oc get all -n openshift-operators
+```
+
+Y puedes comprobar que ya aparecen la opciones de Pipelines.
+
+
+## 8. OpenShift Serverless
+
+### Ejemplo de Serverless Serving
+
+**Knative CLI**
+
+En estos ejemplos, vamos a usar la herramienta de línea de comando kn para manejar las aplicaciones Serverless. Para bajar esta herramienta, accedemos a la consola web de OpenShift y elegimos la opción Command line tools en el icono de ayuda (?).
+
+También lo puedes bajar en la página de la documentación oficial.
+
+Para la instalación en Linux Debian/Ubuntu, descomprimimos y copiamos a un directorio que tengamos en el PATH:
+
+```
+tar -xf kn-linux-amd64.tar.gz
+sudo install kn /usr/local/bin
+
+kn version
+Version:      v1.7.1
+Build Date:   2023-03-29 06:35:36
+...
+```
+
+**Desplegando una aplicación Serverless**
+
+Tenemos varias formas de realizar el despliegue:
+
+1. Usando la definición del servicio en un fichero YAML
+   
+La definición del despliegue Serverless lo tenemos guardado en el fichero serverless.yaml:
+
+``` 
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: hello 
+spec:
+  template:
+    spec:
+      containers:
+        - image: gcr.io/knative-samples/helloworld-go
+          env:
+            - name: TARGET 
+              value: "Serverless! v1"
+```
+
+En ella hemos indicado la imagen que vamos a desplegar, con una variable de entrono que será el mensaje que devuelve la aplicación. Para crear el despliegue:
+
+``` 
+oc apply -f serverless.yaml
+```
+
+2. Usando el CLI kn
+   
+Si usamos la herramienta kn, ejecutamos:
+
+```
+kn service create hello \
+--image gcr.io/knative-samples/helloworld-go \
+--port 8080 \
+--env TARGET="Serverless! v1"
+``` 
+
+3. Desde la consola web de OpenShift
+
+Añadimos un nuevo despliegue desde una imagen. Indicamos la imagen, el nombre y nos aseguramos que en el tipo de despliegue (Resource type) está configurado como Serverless Deployment y creamos la variable de entorno. 
+
+**Comprobación de los recursos que se han creado**
+
+Si creamos la aplicación con cualquiera de las tres alternativas, podemos comprobar los recursos que se han creado:
+
+```
+oc get ksvc,revision,configuration,route.serving.knative
+``` 
+
+Puedes ver estos recursos también con la herramienta kn:
+
+```
+kn service list
+kn revision list
+kn route list
+```
+
+Realmente podemos comprobar que estos objetos han creado otros objetos, para que la aplicación este desplegada. Si obtenemos los recursos en el terminal:
+
+``` 
+oc get all -o name
+pod/hello-00001-deployment-57d4c44b69-6wb6z
+service/hello
+service/hello-00001
+service/hello-00001-private
+service/modelmesh-serving
+deployment.apps/hello-00001-deployment
+replicaset.apps/hello-00001-deployment-57d4c44b69
+imagestream.image.openshift.io/hello
+route.serving.knative.dev/hello
+service.serving.knative.dev/hello
+revision.serving.knative.dev/hello-00001
+configuration.serving.knative.dev/hello
+```
+
+**Autoescalado**
+
+Podemos comprobar que la aplicación funciona:
+
+```
+curl https://hello-josedom24-dev.apps.sandbox-m3.1530.p1.openshiftapps.com
+Hello Serverless! v1!
+``` 
+
+Comprobamos que hay un Pod ejecutando la aplicación:
+
+``` 
+oc get pod
+```  
+
+Si esperamos unos segundos veremos que el despliegue Serverless escala a 0, eliminando el Pod mientras no accedemos a la aplicación.
+
+```
+oc get pod
+```
+
+Puedes ejecutar la instrucción watch oc get pod y comprobar como se crean y eliminan los Pods si hay o no tráfico hacia la aplicación.
+
+**Distribución de tráfico hacía una aplicación Serverless**
+
+Esta característica la podemos usar para realizar distintas estrategias de despliegue, por ejemplo una estrategia Blue/Green. Para ello vamos a crear una nueva revisión, creando un nuevo objeto Revision modificando la configuración del servicio, por ejemplo cambiando la variable de entorno. Para ello podemos realizar la modificación como hemos visto con otros objetos de OpenShift:
+
+```
+oc edit ksvc/hello
+...
+containers:
+  - env:
+    - name: TARGET
+      value: Serverless! v2
+```
+
+Esta modificación también se puede hacer con la herramienta kn:
+
+``` 
+kn service update hello --env TARGET="Serverless! v2"
+```  
+
+Ahora hemos creado una segunda revisión de la aplicación:
+
+``` 
+oc get revision
+NAME          CONFIG NAME   K8S SERVICE NAME   GENERATION   READY   REASON   ACTUAL REPLICAS   DESIRED REPLICAS
+hello-00001   hello                            1            True             0                 0
+hello-00002   hello                            2            True             0                 0
+```  
+
+El objeto Revision que hemos creado ha creado un nuevo Deployment que controlará los Pods de la nueva versión de la aplicación. Si accedemos ahora a la ruta de la aplicación, veremos que nos redirige a los Pods de la nueva revisión:
+
+```  
+curl https://hello-josedom24-dev.apps.sandbox-m3.1530.p1.openshiftapps.com
+Hello Serverless! v2!
+```  
+
+Sin embargo, de una manera muy sencilla podemos redistribuir el tráfico entre cualquier revisión del despliegue, asignando pesos a cada uno de ellos y de esta manera podemos implementar una estrategia de despliegue Blue/Green.
+
+Por ejemplo, desde la consola web, elegimos la opción Set traffic distribution, e indicamos el peso que asignamos a cada revisión para que el tráfico se distribuye con esa proporción. 
+
+Ahora podemos probar el acceso de la aplicación ejecutando el siguiente bucle:
+
+```
+while true; do curl https://hello-josedom24-dev.apps.sandbox-m3.1530.p1.openshiftapps.com; done
+Hello Serverless! v2!
+Hello Serverless! v1!
+...
+```
+
+La distribución entre distintas revisiones se puede realizar también con la herramienta kn:
+
+```
+kn service update hello --traffic hello-00001=25 --traffic @latest=75
+```
+
+### Ejemplo de Serverless Eventing
+
+En este ejemplo vamos a crear una aplicación Serverless muy sencilla, que responde a un evento periódico que vamos a producir con un componente (Event sources) llamado PingSource.
+
+**Creación de la aplicación Serverless desde la consola web**
+
+Para crear la aplicación Serverless vamos a crear una nueva aplicación usando la imagen quay.io/openshift-knative/knative-eventing-sources-event-display:latest.
+
+Recuerda que el parámetro Resource type debe estar definido con la opción Serverless Aplicattion.
+
+A continuación, vamos a crear el generador de eventos de tipo PingSource, para ello desde el catálogo de aplicaciones lo vamos a instalar y realizamos la configuración.
+
+**Creación de la aplicación Serverless con la herramienta kn**
+
+Para crear la aplicación Serverless ejecutamos:
+
+``` 
+kn service create event-display --image quay.io/openshift-knative/knative-eventing-sources-event-display:latest
+```
+
+Y para crear el generador de eventos de tipo PingSource, ejecutamos:
+
+```
+ kn source ping create test-ping-source \
+--schedule "*/2 * * * *" \
+--data '{"message": "Hello world!"}' \
+--sink ksvc:event-display
+``` 
+
+**Comprobación del funcionamiento**
+
+Podemos ejecutar en un terminal la siguiente instrucción:
+
+``` 
+watch oc get pod
+``` 
+
+Para comprobar que cada 2 minutos se crea un Pod tras recibir el evento, pasado unos segundo el Pod se elimina. Cuando tenemos un Pod en ejecución podemos ver sus logs para comprobar que efectivamente ha recibido la información del evento:
+
+``` 
+oc logs $(oc get pod -o name | grep event-display) -c event-display
+
+☁️  cloudevents.Event
+Validation: valid
+Context Attributes,
+  specversion: 1.0
+  type: dev.knative.sources.ping
+  source: /apis/v1/namespaces/josedom24-dev/pingsources/ping-source
+  id: b49e0e3d-1cfc-4e07-98a3-db6882cc3d25
+  time: 2023-04-27T17:14:00.041380151Z
+Data,
+  {"message": "Hello world!"}
+```
+
+### Ejemplo de Serverless Function
+
+Serverless Functions nos permite crear e implementar funciones Serverless basadas en eventos como un servicio Knative. Una función Serverless, también conocida como función sin servidor, es un modelo de programación en la nube en el que nos centramos en escribir funciones que se ejecutan en una infraestructura que no tenemos que mantener, en nuestro caso OpenShift la ejecuta como aplicación Serverless.
+
+Podemos crear funciones Serverless en distintos lenguajes y framework: Qurakus, Go, Node.js, TypeScript, Python,...
+
+**Ejemplo de función Serverless escrita en Python**
+
+Lo primero que vamos a hacer es crear una aplicación en nuestro entorno de desarrollo basada en python, para ello ejecutamos:
+
+```
+cd python
+kn func create -l python
+```
+
+Nos ha creado un esqueleto de aplicación python. Los ficheros que se han creado son los siguientes:
+
+``` 
+ls
+app.sh  func.py  func.yaml  Procfile  README.md  requirements.txt  test_func.py
+``` 
+
+Nuestra aplicación debe estar en el fichero func.py por lo que vamos a modificar este fichero para escribir una función principal muy sencilla, que devolverá un json:
+
+``` 
+def main(context: Context):
+    body = { "mensaje": "Funcion Serverless" }
+    headers = { "content-type": "application/json" }
+    return body, 200, headers
+``` 
+
+A continuación, debemos crear una imagen con el código que hemos desarrollado, está imagen se guardará en el registro interno de OpenShift, para ello ejecutamos:
+
+``` 
+kn func build
+```
+
+Si queremos comprobar el funcionamiento de nuestra función en nuestro entorno de desarrollo, ejecutamos:
+
+``` 
+kn func run
+...
+Function started on port 8080
+```
+
+Si accedemos a localhost al puerto 8080 podemos ver la aplicación funcionando antes de desplegarla.
+
+Por último, para desplegar nuestra función en una aplicación Serverless en OpenShift, ejecutamos:
+
+``` 
+kn func deploy
+``` 
+
+Una vez desplegada, podemos ver el esquema de recursos creados en la topología. Y comprobamos que hemos creado un servicio Knative:
+
+```
+kn service ls
+``` 
+
+Finalmente, si accedemos a la aplicación, comprobamos que funciona de manera adecuada:
+
+``` 
+curl https://python-josedom24-dev.apps.sandbox-m3.1530.p1.openshiftapps.com
+{"mensaje":"Funcion Serverless"}
+```
+
+### Instalación de OpenShift Serverless en CRC
+
+**Instalación del operador OpenShift Pipelines desde la consola web**
+
+En la vista Administrator, escogemos la opción Operators->OperatorHub y filtramos con el nombre del operador "OpenShift Serverless".
+
+Nos aparece una ventana con información del operador y pulsamos sobre el botón Install para comenzar la instalación. 
+
+* Instalamos la última versión del operador etiquetada con latest.
+* Al escoger la opción All namespaces on the cluster (default) hacemos que el operador se pueda usar en todos los proyectos.
+* Se va a crear un namespace llamado openshift-serverless donde se crearán los recursos que va a instalar el operador.
+* Se activa la opción de actualizaciones automáticas.
+  
+Una vez instalado podemos comprobar que lo tenemos instalado en la opción Operators->Installed Operators.
+
+**Instalar Knative Serving**
+
+Instalar Knative Serving le permite crear servicios y funciones Knative en su clúster. Para realizar la instalación pulsamos sobre la opción Knative Serving del operador OpenShift Serverless que hemos instalado y pulsamos sobre el botón Create KnativeServing. Y dejamos todas las opciones por defecto, pero en la vista YAML nos aseguramos de configurar el namespace con el valor knative-serving, que es el valor esperado y es el proyecto donde se crearan los recurso del operador.
+
+**Instalar Knative Eventing**
+
+De manera similar, vamos a instalar Knative Eventing, que nos permite el uso de la arquitectura basada en eventos. Para realizar la instalación pulsamos sobre la opción Knative Eventing del operador OpenShift Serverless que hemos instalado
+
+Y dejamos todas las opciones por defecto, pero en la vista YAML nos aseguramos de configurar el namespace con el valor knative-eventing, que es el valor esperado y es el proyecto donde se crearan los recurso del operador. Y puedes comprobar que ya aparecen las opciones de Serverless.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
