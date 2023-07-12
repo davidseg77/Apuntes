@@ -1,0 +1,139 @@
+# Curso Azure AZ-104 VII
+
+## Casos prácticos
+
+**Crear cuenta de almacenamiento desde Powershell**
+
+Primero nos conectamos con nuestro tenant de Azure. 
+
+``` 
+connect-azaccount
+```
+
+Lo siguiente es ubicar el contexto en la suscripcion en la cual estamos trabajando
+
+```
+Set-azcontext -subscription "Nombre de la suscripción entre comillas"
+``` 
+
+Ahora creamos un grupo de recursos para poner nuestra cuenta de almacenamiento. Para ello, trabajaremos con variables.
+
+* Una para la localización:
+
+```
+$location = "EastUS"
+```
+
+Y creamos el grupo de recursos con su nombre y región. 
+
+``` 
+New-azresourcegroup -name RG_storage -location $location
+``` 
+
+Lo comprobamos:
+
+```  
+get-azresourcegroup
+```
+
+Antes de crear la cuenta de almacenamiento, vamos a definir algunas variables, como, por ejemplo, el nombre de SKU.
+
+```
+$skuName = "Standard_LRS"
+```
+
+O el nombre de la cuenta:
+
+```  
+$StorageAccountName = "Nombre de la cuenta de almacenamiento entre comillas"
+``` 
+
+Y creamos la cuenta con todas sus características:
+
+```
+$StorageAccount = New-AzStorageAccount -ResourceGroupName RG_storage -Location $Location -Name $StorageAccountName -Type $SkuName 
+```
+
+Lo comprobamos:
+
+```
+get-azstorageaccount
+```
+
+**Crear una cuenta de almacenamiento desde los comandos de AZ cli**
+
+Nos logueamos
+
+``` 
+az-login
+```
+
+Vamos a crear nuestra cuenta de almacenamiento directamente en el grupo de recursos ya creado.
+
+```
+az storage account create --resource-group RG_storage --name nombredecuenta --location eastus --sku Standard_LRS
+```
+
+**Crear una cuenta de almacenamiento desde el portal**
+
+En el portal vamos a Cuentas de almacenamiento, crear. Damos nombre y dejamos todo como está. 
+
+Dentro del menu de la cuenta, podemos ir a Replicación geográfica. Ahí vemos como por defecto se me ha creado una replicación de nuestra cuenta en una ubicación secundaria.
+
+Pero. ¿Y si no deseo tener esta replicación?
+
+**Eliminar replicación de mi cuenta de almacenamiento**
+
+Vamos dentro del menu de la cuenta a Configuración, y en el apartado Replicación ponemos Almacenamiento con Replicación local.
+
+Guardamos los cambios y compruebo.
+
+**Nivel de acceso a la cuenta**
+
+Vamos a pasarlo del nivel predeterminado (frecuente) a uno menos frecuente. Para ello, volvemos dentro del menu de la cuenta a Configuración, y en nivel de acceso a blob lo cambiamos a esporádico. 
+
+**Copiar contenido dentro de nuestro blob**
+
+Dentro de nuestra cuenta de almacenamiento, volvemos dentro del menu a Contenedores. Agregamos un contenedor, le damos nombre y lo dejamos en nivel de acceso privado. Creamos. 
+
+Una vez está creado, entramos en él y le damos al botón de cargar. Ahí seleccionamos el archivo a cargar. También tenemos la opción de cargarlo en una carpeta con el archivo dentro. 
+
+Podemos editar el contenido del archivo dentro de nuestro blob. ¿Y si deseamos que algún usuario pueda acceder a él por una situación en concreto?
+
+**Generar SAS**
+
+Dentro del archivo requerido, vamos al apartado Generar SAS. Indicamos fecha y hora de inicio y de final. Los protocolos permitidos van a ser HTTPS y HTTP y generamos la URL y el token. 
+
+Si yo ahora copio la URL facilitada y la paso al navegador el usuario podrá acceder al contenido del archivo. 
+
+**Permisos de acceso del contenedor**
+
+Dentro del menu del contenedor, accedemos a Control de acceso (IAM).
+
+En Asignación de roles, agregamos Colaborador de datos de storage blob y lo asignamos al usuario deseado. Con este método, permitimos que otro usuario de nuestra suscripción pueda acceder a los archivos alojados en este contenedor.
+
+**Crear una compartición de archivos con Azure File**
+
+Vamos a máquinas virtuales en el portal y agregamos una. La añadimos al grupo de recursos creado para el almacenamiento, damos nombre, región, usuario, contraseña... Y la creamos.
+
+Ahora pasamos a configurar el storage. Vamos a nuestra cuenta de almacenamiento y de ahí a la opción Recursos compartidos de archivos. Creamos un recurso compartido y damos nombre. También le ponemos un límite de capacidad, y con ello creamos un recurso compartido dentro de nuestra cuenta de almacenamiento. 
+
+Ahora vamos a darle a la opción de conectar a este recurso. Automáticamente, me da el código necesario para poder conectar a este recurso. Copiamos ese código y si entramos en el Power Shell de nuestra nueva VM, y pegamos la primera línea que establece la conexión junto con el puerto que lo permite.
+
+Después, pegamos el resto del código. Y nos mapeará el recurso compartido creado en nuestra cuenta. Si vamos en la máquina a los recursos de red nos debe aparecer este recurso compartido. Si creamos un archivo en ese directorio, inmediatamente nos aparece almacenado en el apartado Recursos compartidos de archivos de nuestra cuenta de almacenamiento en Azure. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
