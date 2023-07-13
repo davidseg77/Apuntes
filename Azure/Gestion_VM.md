@@ -1,0 +1,97 @@
+# Curso Azure AZ-104 VIII
+
+## Casos prácticos
+
+Creamos un grupo de recursos para añadir todos los recursos que vamos a utilizar en esta práctica. 
+A posteriori, creamos una VM dentro de nuestro grupo de recursos. En opciones de disponibilidad, marcamos Zona de disponibilidad e indicamos que solo queremos tener una zona. Esta máquina tendrá un Windows Server 2016. Permitimos la conexión al puerto RDP (3389).
+
+En el apartado Redes, decimos que queremos crear una nueva red virtual. Creamos, por lo tanto, un nuevo intérvalo de direcciones y una nueva subred. 
+
+En el apartado Administración, le decimos que queremos tener un diagnóstico de arranque. La habilitamos con la cuenta de almacenamiento personalizada. Creamos la cuenta de almacenamiento en este mismo apartado. En opciones de orquestación de servicios, lo dejamos en Actualizaciones manuales. 
+
+Y creamos la VM1.
+
+De ahí pasamos a crear una VM2. Esta vamos a utilizarla con dos zonas de disponibilidad. La red y subred será la misma y la cuenta de almacenamiento idem. Los parámetros serán identicos a la VM1. Y creamos la VM2.
+
+**Convertir estas VM en servidores web usando la característica Machine Station**
+
+Vamos a la cuenta de almacenamiento. Creamos un contenedor (scripts), donde quiero guardar los scripts que me van a permitir instalar recursos en mis VM. Vamos al contenedor y cargamos dentro los scripts deseados. 
+
+Ahora vamos a la VM1, y en su menu, en Configuración, en Extensiones, agregamos la extensión *Custom Script Extension* y le damos a crear. Dentro habrá que insertar el archivo alojado en la cuenta de almacenamiento. Aceptamos y a través de este script y de la extensión se nos instalará el servidor web, que es lo que hace el script, en la VM1. Con la VM2 hacemos el mismo paso.
+
+Aun así, no podremos conectarnos a la VM1. ¿Por qué? El problema radica en que no tenemos abierto el puerto HTTP. Para solucionarlo, vamos en el Portal a Grupos de Seguridad de red y en el de la VM1, en reglas de seguridad de entrada agregamos una contra el servicio HTTP para permitir su acceso. Habrá que hacer lo propio con el de la VM2. Y ya tendremos conexión con sendas máquinas.
+
+**Cambiar tamaño de una VM**
+
+Dentro de la VM, en el menu, en el apartado Tamaño, solo hay que seleccionar el tamaño deseado y cambiar tamaño. 
+
+**Añadir discos a una VM**
+
+Dentro de la VM, en el menu, en el apartado Discos, en Crear y adjuntar un nuevo disco. Podemos darle nombre, tamaño... Para comprobarlo, nos conectamos a la VM y en Administrador de discos lo vemos. 
+
+Dentro del menu de la VM1 en Azure, en Ejecutar comando podemos lanzar un script (RunPowerShellScript).En el script vamos a adjuntar los dos discos como fueran uno solo y asignarlos a una unidad Z de la máquina, y se va a hacer desde fuera. 
+
+```
+$PhysicalDisks = (Get-PhysicalDisk -CanPool $True)
+```
+
+Y ejecutamos el script.
+
+El siguiente script será crear nuestro nuevo disco virtual:
+
+```
+New-VirtualDisk -StoragePoolFriendlyName storagepool1 -FriendlyName virtualdisk1 -Size 2046GB -ResiliencySettingName Simple -ProvisioningType Fixed
+```
+
+Tras esto, inicializamos el disco virtual recien creado:
+
+``` 
+Initialize-Disk -VirtualDisk (Get-VirtualDisk -FriendlyName virtualdisk1)
+``` 
+
+Lo último será mapear la unidad Z a nuestro disco.
+
+```  
+New-Partition -DiskNumber 4 -UseMaximumSize -DriveLetter Z
+``` 
+
+Si volvemos a comprobar dentro de la VM1 en Administrador de discos veremos como tenemos los discos adjuntados en una unidad Z.
+
+Para la VM2, hariamos lo propio.
+
+**Crear un conjunto de escalado**
+
+Vamos al Portal, a conjunto de escalado. Agregar e indicamos suscripción y grupo de recursos. Damos nombre, 3 zonas de disponibilidad e imagen a utilizar. Creamos una red virtual con una subred para el conjunto de escalado y lo asociamos con el mismo grupo de recursos. 
+
+Editamos la tarjeta de red dentro de las opciones para permitir los puertos seleccionados, donde vamos a indicar HTTP y RDP. Le habilito una IP pública, un equilibrador de carga y lo habilitamos con la cuenta de almacenamiento personalizada. 
+
+**Configurar conjunto de escalado a través de la Extensión de la VM**
+
+Vamos al conjunto de escalado y en su menu, a Extensiones. Agregar, Custom Script Extension y me voy al archivo alojado dentro de la cuenta de almacenamiento. Este script se ejecutará en cuanto sea agregado. Si me voy a las dos instancias que he creado para este conjunto de escalado y marco las dos, si le doy a Actualizar los cambios aplicados al conjunto de escalado se aplicarán a sendas instancias. Es decir, el script se ejecutará en sendas instancias.
+
+Si me voy en el portal a Equilibrador de Carga y accedo al que tenemos creado, si copiamos la IP pública del servicio y la llevamos al navegador veremos como el servicio funciona.
+
+En el conjunto de escalado, en el menu también puedo cambiarle el tamaño o el número de discos. 
+
+**Crear una regla de escalado**
+
+Vamos a crear una regla para que el escalado sea automático. Para ello, vamos al menu del conjunto de escalado, al apartado Escalando. Habilitamos la escalabilidad automática personalizada. Bajamos y agregamos una regla de escalado. Guardamos los cambios. 
+
+**Crear Azure Bastion**
+
+Servicio que nos va a permitir conectarnos a nuestras VM sin necesidad de hacer uso del puerto RDP.
+
+Para ello creamos una VM y la asociamos a nuestro grupo de recursos. Dentro de la red que nos crea, hemos de crear una subred para el Bastion. Debe llamarse exactamente así (AzureBastionSubnet). Creamos la VM.
+
+Ahora vamos en el Portal a Bastiones, agregamos añadiendo el grupo de recursos, damos nombre y agregamos la red virtual creada para la máquina junto con la subred de Azure Bastion. Y creamos.
+
+Ahora podremos conectarnos a nuestra VM desde el propio portal sin necesidad de tirar del puerto de RDP en Internet. Esta opción, por lo tanto, es más segura.
+
+Para comprobarlo, vamos a nuestra VM y conectamos desde la opción Bastion. 
+
+
+
+
+
+
+
