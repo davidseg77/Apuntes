@@ -817,6 +817,400 @@ Para eliminar la plantilla completa:
 terraform destroy
 ``` 
 
+## 5. Conceptos avanzados
+
+**Backend**
+
+Podemos encontrar info sobre los diferentes tipos de Backend de Terraform en su página oficial, dentro del apartado docs.
+
+Para este caso práctico, vamos a nuestra cuenta de AWS y en el servicio S3 creamos un Bucket. Habilitamos el versionado, como requisito opcional pero aconsejable. En este bucket es donde vamos a almacenar nuestro fichero de estado. 
+
+Creamos una tabla en Dynamo DB, llamada OpenWebinars-lockin. Definimos el main.tf, donde definimos un backend de tipo s3:
+
+```
+terraform {
+  required_version = ">= 0.10.7"
+  backend "s3" {
+    bucket = "openwebinars-states"
+    region = "eu-west-1"
+    key = "states-tfstate"
+    dynamodb_table = "openwebinars-lockin"
+    profile = "openwebinars"
+  }
+}
+
+provider "aws" {
+  region = "${var.region}"
+  allowed_account_ids = ["${var.aws_id}"]
+  profile = "openwebinars"
+}
+
+data "aws_availability_zones" "az" {}
+``` 
+
+Hacemos un init, un plan, donde se cargaran todos los recursos que habiamos hecho para la plantilla compleja anterior con esta modificación en el main.tf, y apply. Con todo operativo, si vamos a la consola de AWS, a Dynamo DB, vemos como en el bucket S3 tenemos el archivo salvado para no perder nuestra estructura en caso de error en nuestro entorno VSC. 
+
+**Creación de módulos**
+
+Para este caso, vamos a crear un módulo local. Primero creamos un directorio llamado módulos, y dentro  un archivo vpc.tf, similar a lo visto hasta ahora. De hecho, el archivo a usar será el que ya tenemos. Y definimos un output con las id de la vpc y las subnets.
+
+* output.tf
+
+``` 
+output "vpc_id" {
+  value = "${aws_vpc.vpc.id}"
+}
+
+output "sub_pub1" {
+  value = "${aws_subnet.pub1.id}"
+}
+
+output "sub_pub2" {
+  value = "${aws_subnet.pub2.id}"
+}
+
+output "sub_pri1" {
+  value = "${aws_subnet.pri1.id}"
+}
+
+output "sub_pri2" {
+  value = "${aws_subnet.pri2.id}"
+}
+``` 
+
+Y un archivo de variables referentes a las cidr de la vpc y las subnets, así como para habilitar el hostname y el soporte dns.
+
+* variables.tf
+
+``` 
+variable "vpc_cidr" {
+  type = "string"
+  default = "10.0.0.0/16"
+}
+
+variable "pub1_cidr" {
+  type = "string"
+  default = "10.0.0.0/24"
+}
+
+variable "pub2_cidr" {
+  type = "string"
+  default = "10.0.1.0/24"
+}
+
+variable "pri1_cidr" {
+  type = "string"
+  default = "10.0.10.0/24"
+}
+
+variable "pri2_cidr" {
+  type = "string"
+  default = "10.0.11.0/24"
+}
+
+variable "enable_dns_hostnames" {
+  type = "string"
+  default = true
+}
+
+variable "enable_dns_support" {
+  type = "string"
+  default = true
+}
+``` 
+
+Estos tres archivos van en la carpeta módulos. Esta carpeta, a su vez, se alojará dentro de otra donde se hallan los siguientes recursos:
+
+* elb.tf
+
+``` 
+resource "aws_elb" "web" {
+  name = "${var.environment}-web-elb"
+  cross_zone_load_balancing = true
+  subnets = ["${module.vpc.sub_pub1}", "${module.vpc.sub_pub2}"]
+  security_groups = ["${aws_security_group.elb-sg.id}"]
+
+  listener {
+    instance_port     = 80
+    instance_protocol = "http"
+    lb_port           = 80
+    lb_protocol       = "http"
+  }
+  health_check {
+    healthy_threshold = 2
+    interval = 10
+    target = "TCP:80"
+    timeout = 5
+    unhealthy_threshold = 5
+  }
+}
+```
+
+* main.tf
+
+``` 
+terraform {
+  required_version = ">= 0.10.7"
+}
+
+provider "aws" {
+  region = "${var.aws_region}"
+  allowed_account_ids = ["${var.aws_id}"]
+  profile = "openwebinars"
+}
+
+data "aws_availability_zones" "az" {}
+
+module "vpc" {
+  source = "./modules/vpc"
+}
+``` 
+
+* security_groups.tf
+
+``` 
+resource "aws_security_group" "elb-sg" {
+  name = "elb-sg"
+  vpc_id = "${module.vpc.vpc_id}"
+  ingress {
+    from_port = 80
+    protocol = "tcp"
+    to_port = 80
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  ingress {
+    from_port = 443
+    protocol = "tcp"
+    to_port = 443
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  egress {
+    from_port = 0
+    protocol = "-1"
+    to_port = 0
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+``` 
+
+* Otro archivo variables.tf, este para los recursos de este directorio.
+
+``` 
+variable "aws_region" {
+  type = "string"
+  default = "eu-west-1"
+}
+
+variable "aws_id" {
+  type = "string"
+  default = "723002569774"
+}
+
+variable "aws_amis" {
+  type = "map"
+  default = {
+    "eu-west-1" = "ami-acd005d5"
+    "us-east-1" = "ami-8c1be5f6"
+    "eu-central-1" = "ami-c7ee5ca8"
+  }
+}
+
+variable "environment" {
+  type = "string"
+  default = "pro"
+}
+``` 
+
+Hacemos init, plan y apply. De esta forma, podemos crear una infraestructura como módulo.
+
+**Módulos desde la comunidad Terraform**
+
+En la página de Terraform, podemos encontrar módulos ya predefinidos por la comunidad haciendo clic en Find Modules. Para cargar desde la comunidad debemos especificar lo siguiente en el main.tf:
+
+``` 
+terraform {
+  required_version = ">= 0.10.7"
+}
+
+provider "aws" {
+  region              = "${var.aws_region}"
+  allowed_account_ids = ["${var.aws_id}"]
+  profile             = "openwebinars"
+  version             = "~> 1.0"
+}
+
+module "vpc" {
+  source = "terraform-aws-modules/vpc/aws" (Aquí indicamos que el módulo va a ser traido de la web de Terraform)
+
+  name = "my-vpc"
+  cidr = "10.0.0.0/16"
+
+  azs              = ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
+  private_subnets  = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+  public_subnets   = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24"]
+  database_subnets = ["10.0.21.0/24", "10.0.22.0/24", "10.0.23.0/24"]
+
+  enable_dns_support   = true
+  enable_dns_hostnames = true
+
+  tags = {
+    Terraform   = "true"
+    Environment = "dev"
+  }
+}
+``` 
+
+Podemos cargar modulos para elb, rds, autoscaling, security groups... Podemos ver todos ellos en el siguiente enlace:
+
+https://github.com/OpenWebinarsNet/terraform-examples-openwebinars/tree/master/6-advanced-concepts/c_community-modules
+
+Para darle formato a nuestra plantilla podemos hacer uso del siguiente comando:
+
+```
+terraform fmt
+```
+
+Le da estilo al formato de nuestras plantillas. 
+
+Hacemos init, plan y apply. 
+
+## 6. Otros proveedores
+
+**Mysql**
+
+Lo especificamos de la siguiente manera en el main.tf:
+
+``` 
+provider "aws" {
+  region              = "${var.aws_region}"
+  allowed_account_ids = ["${var.aws_id}"]
+  profile = "openwebinars"
+  version = "~> 1.0"
+}
+
+provider "mysql" {
+  endpoint = "${aws_db_instance.mydb.endpoint}"
+  username = "${var.rds_username}"
+  password = "${var.rds_passwd}"
+}
+``` 
+
+Las variables ya están definidas en el variables.tf de la plantilla compleja creada en pasos anteriores. Creamos el rds.tf con los requisitos para nuestra base de datos Mysql:
+
+``` 
+resource "aws_db_instance" "mydb" {
+  identifier        = "mydb"
+  username          = "${var.rds_username}"
+  password          = "${var.rds_passwd}"
+  instance_class    = "db.t2.micro"
+  engine            = "mysql"
+  allocated_storage = 10
+  storage_type      = "gp2"
+  multi_az          = false
+
+  vpc_security_group_ids = ["${aws_security_group.rds-sg.id}"]
+  publicly_accessible    = true
+  skip_final_snapshot    = true
+}
+
+resource "mysql_database" "mydb" {
+  name = "mydb"
+}
+
+resource "mysql_user" "app_user" {
+  user = "app_user"
+  password = "secret_passwd"
+  host = "%"
+}
+
+resource "mysql_grant" "grants" {
+  database = "${mysql_database.mydb.name}"
+  privileges = ["ALL"]
+  user = "${mysql_user.app_user.user}"
+  host = "%"
+}
+``` 
+
+Y creamos un archivo para security groups:
+
+```
+resource "aws_security_group" "rds-sg" {
+  name = "rds-sg"
+  ingress {
+    from_port = 3306
+    protocol = "tcp"
+    to_port = 3306
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  egress {
+    from_port = 0
+    protocol = "-1"
+    to_port = 0
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+``` 
+Y otro para output:
+
+``` 
+output "rds_endpoint" {
+  value = "${aws_db_instance.mydb.endpoint}"
+}
+``` 
+
+Hacemos init, plan y apply. Y tendremos nuestra estructura basada en providers AWS y MSQL.
+
+**Google Cloud**
+
+Creamos una cuenta en google Cloud y en el apartado IAM creamos una cuenta de usuario y unas credenciales para poder loguearnos en google Cloud. Creamos en nuestro VSC un directorio llamado google_cloud, donde se alojan tres archivos. 
+
+* main.tf
+
+``` 
+provider "google" {
+  credentials = "${file("/home/bart/Downloads/aryam-f82c99babbad.json")}" (Las creadas en Google Cloud)
+  project     = "bart-72300"
+  region      = "europe-west1"
+}
+```
+
+Para crear una instancia:
+
+* instance.tf
+
+``` 
+resource "google_compute_instance" "default" {
+  name = "my-openwebinars-instance"
+  machine_type = "f1-micro"
+  zone = "europe-west1-b"
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-8"
+    }
+  }
+  network_interface {
+    network = "default"
+  }
+}
+```
+
+* output.tf
+
+```
+output "instance_id" {
+  value = "${google_compute_instance.default.id}"
+}
+``` 
+
+Hacemos un init, plan y apply.
+
+
+
+
+
+
+
+
 
 
 
