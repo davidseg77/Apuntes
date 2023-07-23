@@ -2597,7 +2597,7 @@ La instrucción return puede devolver cualquier tipo de resultados, por lo tanto
 10
 ``` 
 
-## 8. Programación orientada a objetos
+
 
 
 
