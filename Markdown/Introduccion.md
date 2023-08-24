@@ -64,11 +64,13 @@ fake@example.com
 
 ### 1.4 Imágenes
 
-Para agregar una imagen, agregue un signo de exclamación ( !), seguido de texto alternativo entre paréntesis y la ruta o URL al recurso de imagen entre paréntesis. Opcionalmente, puede agregar un título entre comillas después de la ruta o URL.
+Para agregar una imagen, agregue un signo de exclamación ( !), seguido de texto alternativo entre paréntesis y la ruta o URL al recurso de imagen entre paréntesis. Opcionalmente, puede agregar un título entre comillas después de la ruta o URL. Yo, por ejemplo, voy a agregar una de mi compañero Frodo:
 
 ``` 
-![The San Juan Mountains are beautiful!](/assets/images/san-juan-mountains.jpg "San Juan Mountains")
+![Frodo!](https://github.com/davidseg77/Apuntes/blob/main/Markdown/frodo.jpg "Frodo")
 ``` 
+
+La imagen se mostrará de tal manera:
 
 ![Frodo!](https://github.com/davidseg77/Apuntes/blob/main/Markdown/frodo.jpg "Frodo")
 
