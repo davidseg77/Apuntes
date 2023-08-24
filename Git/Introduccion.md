@@ -47,6 +47,8 @@ mZ+AW4OZPnTPI89ZPmVMLuayrD2cE86Z/il8b+gw3r3+1nKatmIkjn2so1d01QraTlMqVSsbx
 NrRFi9wrf+M7Q== schacon@agadorlaptop.local
 ``` 
 
+NOTA IMPORTANTE. [^1]
+
 [^1]: En mi caso, la clave la copio en el apartado Settings de mi cuenta de usuario en Github, dentro de **SSH and GPG keys**.
 
 
