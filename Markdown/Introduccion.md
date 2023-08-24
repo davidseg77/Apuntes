@@ -66,6 +66,10 @@ fake@example.com
 
 Para agregar una imagen, agregue un signo de exclamación ( !), seguido de texto alternativo entre paréntesis y la ruta o URL al recurso de imagen entre paréntesis. Opcionalmente, puede agregar un título entre comillas después de la ruta o URL.
 
+``` 
+![The San Juan Mountains are beautiful!](/assets/images/san-juan-mountains.jpg "San Juan Mountains")
+``` 
+
 ![Frodo!](https://github.com/davidseg77/Apuntes/blob/main/Markdown/frodo.jpg "Frodo")
 
 
