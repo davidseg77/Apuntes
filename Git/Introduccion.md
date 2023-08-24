@@ -49,7 +49,7 @@ NrRFi9wrf+M7Q== schacon@agadorlaptop.local
 
 NOTA IMPORTANTE. [^1]
 
-[^1]: En mi caso, la clave la copio en el apartado Settings de mi cuenta de usuario en Github, dentro de **SSH and GPG keys**.
+En mi caso, la clave la copio en el apartado Settings de mi cuenta de usuario en Github, dentro de **SSH and GPG keys**.
 
 
 ## 2. Creación de un repositorio y configuración de Git
