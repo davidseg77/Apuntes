@@ -35,13 +35,13 @@ You can login with the following:
 - **Username:** admin
 - **Password:** default password from previous command
 
-### The Argo CD Web Console
+## 1. The Argo CD Web Console
 
 You can also find this URL by clicking the shortcut from the Application Launcher tab from the OpenShift Web Console:
 
 Nos vamos al cuadrado de la parte superior derecha de la consola.
 
-### ArgoCD Configuration
+## 2. ArgoCD Configuration
 
 Let's come back to the terminal. Verify that you're connected to the Argo CD API server by running the following:
 
@@ -74,7 +74,7 @@ ls ~/.argocd/config
 
 The argocd CLI tool is useful for debugging and viewing status of your apps deployed.
 
-### Deploying a Sample Application
+## 3. Deploying a Sample Application
 
 In this environment, we have some example manifesets taken from our sample GitOps repo. We'll be uisng this repo to test. These manifests include:
 
@@ -86,7 +86,7 @@ In this environment, we have some example manifesets taken from our sample GitOp
 Collectively, this is known as an Application within ArgoCD. Therefore, you must define it as such in order to apply these manifest in your cluster.
 
 
-**Open up the Argo CD Application manifest: bgd-app.yaml**
+### 3.1 Open up the Argo CD Application manifest: bgd-app.yaml
 
 Let's break this down a bit.
 

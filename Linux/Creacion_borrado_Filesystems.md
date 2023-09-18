@@ -1,8 +1,8 @@
 # Info extraida del taller Creación y borrado de Filesystems en Linux
 
-## Caso práctico
+## 1. Caso práctico
 
-**Crear un archivo de swap**
+### 1.1 Crear un archivo de swap
 
 ``` 
 sudo dd if=/dev/zero of=/swapfile bs=1M count=10
@@ -24,7 +24,7 @@ swapon /swapfile
 
 Con swapon vemos los archivos de tipo swap que tenemos en el sistema. Para desactivarlo sería con swapoff. 
 
-**Creación y destrucción de particiones**
+### 1.2 Creación y destrucción de particiones
 
 Para ello, vamos a crear un disco duro en nuestra VM aparte del que ya tenemos. En primer lugar, apagamos nuestra VM. Cuando este apagada, vamos a Storage y abajo damos en añadir controlador de Storage. Escogemos el controlador SATA (AHCI), y dentro del controlador damos a añadir disco duro.
 
@@ -71,7 +71,7 @@ sudo fdisk /dev/sdb
 Y damos la opción dd (delete).
 
 
-**Crear particiones persistentes**
+### 1.3 Crear particiones persistentes
 
 Para ello, editamos el archivo /etc/fstab. Y añadimos la partición que tenemos creada junto con la ruta de montaje y el tipo de sistema de archivos.
 

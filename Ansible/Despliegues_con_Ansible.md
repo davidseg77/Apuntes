@@ -38,7 +38,7 @@ Y una vez actualizado, instalamos Ansible:
 sudo apt install ansible -y
 ``` 
 
-**Comandos ad-hoc**
+### 1.1 Comandos ad-hoc
 
 Permite simultanear a todas las máquinas lo que se indica con un comando. Por ejemplo, para reiniciar todas las VM:
 
@@ -58,7 +58,7 @@ ansible all -a 'touch ~/Openwebinars/ansible/testFile' -i inventory/hosts.ini
 
 ## 2. Playbooks
 
-**Estructura**
+### 2.1 Estructura
 
 Elementos más importantes que la componen:
 
@@ -70,7 +70,7 @@ Elementos más importantes que la componen:
 
 * Variables: Se utiliza para asignar valores a variables, donde posteriormente las podemos utilizar en nuestro Playbook sin necesidad de hardcodear parámetros
 
-**Gestión de ficheros**
+### 2.2 Gestión de ficheros
 
 -    Copy: Copia un archivo desde la máquina local o remota a una ubicación en la máquina remota.
 -    Template: Copia un archivo al servidor remoto y permite utilizar variables dentro del archivo.
@@ -80,7 +80,7 @@ Elementos más importantes que la componen:
 
 ## 3. Casos prácticos con Playbooks
 
-**Instalar y configurar un servidor web personalizado**
+### 3.1 Instalar y configurar un servidor web personalizado
 
 En primer lugar, creo el directorio nginx. Dentro del directorio, creo un directorio para inventory y dentro de él el fichero de hosts.ini, que es donde vamos a configurar los servidores. En ese archivo deberemos insertar las ip de los servidores a configurar. 
 
@@ -136,7 +136,7 @@ ansible-playbook -i inventory/hosts.ini main.yml
 * hosts.ini hace referencia al archivo donde tenemos los servidores en los cuales queremos desplegar la app.
 * main.yml indica el archivo de referencia para el despliegue.
 
-**Registrando valores**
+### 3.2 Registrando valores
 
 Editamos el main.yml del directorio principal para añadir un nuevo rol de registro de variables:
 
@@ -171,7 +171,7 @@ Lo que estamos haciendo es cargar el archivo en la variable motd_file. Volvemos 
 ansible-playbook -i inventory/hosts.ini main.yml 
 ```
 
-**Añadiendo condiciones**
+### 3.3 Añadiendo condiciones
 
 Una condición se utiliza para controlar si una tarea se tiene que ejecutar o se quiere omitir. Para nuestro caso práctico, vamos a añadir un tercer rol en el main.yml principal llamado condiciones:
 
@@ -248,7 +248,7 @@ La condición que hemos pasado es que si el fichero motd existe nos muestre True
 
 Y si lanzamos el comando de despliegue desde el directorio de nginx nos lo creará si el archivo no existe.
 
-**Failed when**
+### 3.4 Failed when
 
 Sirve para registrar si un fichero existe o no. En caso de que no existiera, nos dará fallo. Creamos un nuevo rol dentro del main.yml principal:
 
@@ -282,7 +282,7 @@ Como se ha hecho con cada rol, vamos a la carpeta roles y creamos una para forza
 
 En este caso no fallaría al realizar el despliegue porque el archivo existe, pero viene bien para asegurarnos de que el archivo está bien escrito, por ejemplo.
 
-**Ignore errors**
+### 3.5 Ignore errors
 
 Creamos un nuevo rol en el main principal:
 
@@ -314,7 +314,7 @@ Hemos quitado o podríamos descomentar el rol de forzar fallo porque generaría 
 
 Mediante la variable ignore errors los errores serán ignorados en el despliegue. 
 
-**Creando templates**
+### 3.6 Creando templates
 
 Creamos un nuevo rol dentro del main principal:
 
@@ -382,7 +382,7 @@ variableOpenwebinars: valor que queramos darle (por ej. davidseg)
 Lanzamos el despliegue y nginx se instalará mostrandonos el hostname y el valor dado en la variable.
 
 
-**Bucles**
+### 3.7 Bucles
 
 Dentro del archivo main original creamos un nuevo rol para este asunto de los bucles.
 

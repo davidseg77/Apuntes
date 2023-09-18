@@ -2,7 +2,7 @@
 
 **HAProxy**, (High Availability Proxy (Proxy de alta disponibilidad)), es un popular software de código abierto TCP/HTTP Balanceador de carga y una solución de proxy que se puede ejecutar en Linux, Solaris y FreeBSD. Su uso más común es mejorar el rendimiento y la confiabilidad de un entorno de servidor distribuyendo la carga de trabajo entre múltiples servidores (por ejemplo, web, aplicación, base de datos).
 
-**Levantar el escenario**
+## 1. Levantar el escenario
 
 Simplemente ejecutamos la instrucción:
 
@@ -14,7 +14,7 @@ $ ansible-playbook site.yaml
 
 Que levanta y configura la red en los tres nodos y configurar el escenario.
 
-**Prueba de funcionamiento**
+## 2. Prueba de funcionamiento
 
 En este caso cuando accedemos a www estaremos accediendo al nodo balanceador de carga (hemos instalado el balanceador en la misma máquina que el dns), donde hemos instalado HAPorxy, podemos preguntar a nuestro servidor dns principal:
 

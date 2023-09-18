@@ -54,7 +54,7 @@ Y ahora inicializamos el proyecto en nuestra carpeta:
 terraform init
 ``` 
 
-**Crear nuestro primer recurso**
+### 2.1 Crear nuestro primer recurso
 
 Como primer recurso, crearemos una VPC dentro bien del main.tf o en otro archivo dentro del mismo directorio llamado vpc.tf:
 
@@ -81,13 +81,13 @@ Para aplicar los cambios después de la revisión del plan:
 terraform apply 
 ```
 
-**States (Ficheros de estado)**
+### 2.2 States (Ficheros de estado)
 
 Si hacemos cualquier cambio en nuestro archivo main.tf o el vpc.tf, con terraform plan nos dirá donde están los cambios y si los aplicamos se harán de manera automática. Lo comprobamos en AWS. 
 
 Siempre que hagamos un cambio, Terraform nos crea un archivo backup para contener esa versión anterior del fichero, lo cual es muy aconsejable para hacer un rollback si fuera necesario. Solo habría que irse a ese archivo y desde el lanzar el plan y el apply.
 
-**Variables**
+### 2.3 Variables
 
 Podemos especificar una serie de variables dentro de un archivo .tf. Esto es productivo a la hora de crear una plantilla extensa.
 
@@ -121,7 +121,7 @@ resource "aws_vpc" "vpc" {
 }
 ```
 
-**Outputs**
+### 2.4 Outputs
 
 Podemos crear un recurso de tipo output para dar forma a nuestra instancia de vpc. En el archivo de variables ya se definieron el tipo de instancia y la AMI.
 
@@ -174,7 +174,7 @@ Si quisiera recuperar el output de una plantilla de terraform:
 terraform output
 ``` 
 
-**Templates**
+### 2.5 Templates
 
 Pueden ser creados para personalizar cualquier aspecto de nuestra infraestructura. En este caso, vamos a crear un directorio template y dentro añadimos nuestro archivo de plantilla, un simple script a modo de ejemplo. 
 
@@ -239,7 +239,7 @@ Y la instancia se importará al archivo de estado de Terraform.
 
 ## 4. Desarrollo de una plantilla compleja
 
-**Crear N recursos**
+### 4.1 Crear N recursos
 
 En este caso, podemos crear una cantidad deseada de un mismo recurso dentro un único archivo. Para ello defino las variables necesarias (variables.tf)
 
@@ -303,7 +303,7 @@ resource "aws_instance" "webservers" {
 
 Mediante esta plantilla indicamos que queremos lanzar tres instancias iguales con la imagen y región definidas. Iniciamos con terraform init, y lanzamos el terraform plan. 
 
-**Reutilizar una plantilla**
+### 4.2 Reutilizar una plantilla
 
 Para este caso, vamos a hacer uso del mismo main.tf. Ahora queremos lanzar un servicio de balanceador de carga de AWS, definido en un archivo (elb.tf):
 
@@ -365,7 +365,7 @@ variable "environment" {  (En realidad, esta variable no la uso y si la opción 
 Hecho todo esto, terraform plan y apply para ejecutar todo. 
 
 
-**Crear y asociar varios recursos entre si**
+### 4.3 Crear y asociar varios recursos entre si
 
 Vamos a crear una VPC con subnets, dos públicas y dos privadas, una puerta de enlace y una ruta.
 
@@ -599,7 +599,7 @@ terraform plan
 terraform apply
 ``` 
 
-**Crear y asociar varios recursos entre si II**
+### 4.4 Crear y asociar varios recursos entre si II
 
 En este paso, vamos a implantar un servicio de bases de datos, añadiendose a lo anterior. En primer término, voy a definir dos variables más, una para el username y otra para el password.
 
@@ -819,7 +819,7 @@ terraform destroy
 
 ## 5. Conceptos avanzados
 
-**Backend**
+### 5.1 Backend
 
 Podemos encontrar info sobre los diferentes tipos de Backend de Terraform en su página oficial, dentro del apartado docs.
 
@@ -850,7 +850,7 @@ data "aws_availability_zones" "az" {}
 
 Hacemos un init, un plan, donde se cargaran todos los recursos que habiamos hecho para la plantilla compleja anterior con esta modificación en el main.tf, y apply. Con todo operativo, si vamos a la consola de AWS, a Dynamo DB, vemos como en el bucket S3 tenemos el archivo salvado para no perder nuestra estructura en caso de error en nuestro entorno VSC. 
 
-**Creación de módulos**
+### 5.2 Creación de módulos
 
 Para este caso, vamos a crear un módulo local. Primero creamos un directorio llamado módulos, y dentro  un archivo vpc.tf, similar a lo visto hasta ahora. De hecho, el archivo a usar será el que ya tenemos. Y definimos un output con las id de la vpc y las subnets.
 
@@ -1023,7 +1023,7 @@ variable "environment" {
 
 Hacemos init, plan y apply. De esta forma, podemos crear una infraestructura como módulo.
 
-**Módulos desde la comunidad Terraform**
+ ### 5.3 Módulos desde la comunidad Terraform
 
 En la página de Terraform, podemos encontrar módulos ya predefinidos por la comunidad haciendo clic en Find Modules. Para cargar desde la comunidad debemos especificar lo siguiente en el main.tf:
 
@@ -1076,7 +1076,7 @@ Hacemos init, plan y apply.
 
 ## 6. Otros proveedores
 
-**Mysql**
+### 6.1 Mysql
 
 Lo especificamos de la siguiente manera en el main.tf:
 
@@ -1160,7 +1160,7 @@ output "rds_endpoint" {
 
 Hacemos init, plan y apply. Y tendremos nuestra estructura basada en providers AWS y MSQL.
 
-**Google Cloud**
+### 6.2 Google Cloud
 
 Creamos una cuenta en google Cloud y en el apartado IAM creamos una cuenta de usuario y unas credenciales para poder loguearnos en google Cloud. Creamos en nuestro VSC un directorio llamado google_cloud, donde se alojan tres archivos. 
 

@@ -10,7 +10,7 @@ vagrant
 ```
 
 
-### 2. Flujo básico de trabajo con Vagrant
+## 2. Flujo básico de trabajo con Vagrant
 
 * Creamos la piedra angular de Vagrant, mediante el fichero Vagrantfile
 

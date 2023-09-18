@@ -10,7 +10,7 @@ Si hacemos clic derecho sobre el parámetro, podemos añadirlo a un grupo que ll
 
 Gracias a los parámetros podemos tener en un sitio la conexión, de manera que no tengamos que estar cambiándolo en todos partes. Es muy útil por ejemplo cuando hacemos una subida al entorno de producción, ya que cambiando la ruta del parámetro en un sitio se cambia la cadena de conexión de todos las tablas que tengan como conexión ese parámetro.
 
-## 1.2 Crear los gráficos del campo importe
+### 1.2 Crear los gráficos del campo importe
 
 En primer lugar, ya tenemos nuestros datos importados, las tablas, pero no las tenemos relacionadas entre si. Para ello, nos vamos dentro del menu superior a la opción Administrar relaciones. Es muy importante tener nuestra tabla de calendarios, para ello vamos arriba a Modelado, Nueva tabla y añadimos la de calendario, poniendo por ejemplo lo siguiente en la barra:
 
@@ -23,22 +23,22 @@ Vamos a Administrar relaciones y accedemos a una de las tablas y la relacionamos
 Para hacer nuestro primer gráfico vamos a Visualizaciones, escogemos el gráfico y añadimos los campos tanto en el eje como en los valores a mostrar. 
 Acto seguido, creamos nuestro marcador. 
 
-## 1.3 Crear marcadores
+### 1.3 Crear marcadores
 
-﻿Una vez sabemos que información vamos a mostrar, la queremos mostrar lo más bonita posible, aquí son muy útiles los marcadores, imaginar poder tener a golpe de click los mismo gráficos vistos en moneda y en porcentaje en una misma página.
+Una vez sabemos que información vamos a mostrar, la queremos mostrar lo más bonita posible, aquí son muy útiles los marcadores, imaginar poder tener a golpe de click los mismo gráficos vistos en moneda y en porcentaje en una misma página.
 Además permite crear un botón de “borrar todos los filtros”.
 
 Para crear el marcador, vamos a Vista y activamos Panel Marcadores y Panel Selección. 
 
 En la pestaña Marcadores, los agregamos. Y en pestaña Formato de imagen, en Acción ponemos el tipo Marcador. 
 
-## 1.4 Sincronizar segmentaciones
+### 1.4 Sincronizar segmentaciones
 
 Al igual que en excel podemos añadir segmentadores de datos, estos nos permiten filtrar la información por alguna dimensión. Cuando por ejemplo añadimos el mismo segmentador de datos en varias páginas Power BI nos permite poder sincronizarlos, es decir, si aplicamos el filtro en una página, este mismo filtro se aplica al resto de páginas donde hayamos habilitado la sincronización.
 
 En Vista, activamos Sincronizar segmentaciones y ahí añadimos donde sincronizar.
 
-## 1.5 Información sobre la herramienta
+### 1.5 Información sobre la herramienta
 
 Si pasamos el ratón por encima de un gráfico Power BI nos permite añadir información adicional que se muestra solo cuando dejamos el ratón encima del gráfico. Pero no solo no permite agregar nuevos valores, sino que podemos configurar una página entera donde mostrar la información que se desea.
 

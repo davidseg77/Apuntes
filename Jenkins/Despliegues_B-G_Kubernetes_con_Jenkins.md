@@ -1,8 +1,8 @@
 # Info extraida del taller Despliegues Blue/Green automatizados en Kubernetes con Jenkins
 
-## Caso práctico
+## 1. Caso práctico
 
-**Instalar Docker**
+### 1.1 Instalar Docker
 
 En primer lugar vamos a crear nuestro entorno, para eso necesitamos instalar: Docker, Jenkins y minikube.
 
@@ -24,7 +24,7 @@ Agregue su usuario al grupo docker
 sudo usermod -aG docker $USER
 ``` 
 
-**Instalar Jenkins**
+### 1.2 Instalar Jenkins
 
 Vamos a usar docker para implementar Jenkins:
 
@@ -40,7 +40,7 @@ docker exec <docker_container> cat /var/jenkins_home/secrets/initialAdminPasswor
 
 Inserte la contraseña, haga clic en instalar con complementos sugeridos y configure el usuario.
 
-**Instalación de Minikube**
+### 1.3 Instalación de Minikube
 
 Ahora vamos a descargar el binario minikube y tenemos que dar permisos de ejecución.
 
@@ -72,7 +72,7 @@ kubectl get pod -n kube-system
 
 Y todo ha de estar en estado running.
 
-**Crear biblioteca compartida**
+### 1.4 Crear biblioteca compartida
 
 Ahora vamos a crear una biblioteca compartida, para esto necesitamos un repositorio nombrado jenkinsfile-shared-library con la siguiente estructura:
 
@@ -87,7 +87,7 @@ Ahora nos vamos a Jenkins, Credentials y en Global Credentials las creamos, conc
 Añadimos credenciales y URL del repositorio. Validamos, y guardamos. 
 
 
-**Crear service account**
+### 1.5 Crear service account
 
 En primer lugar, clonamos el repositorio demo del taller mediante git clone. Aquí tendremos todo lo necesario para el taller.
 
@@ -146,7 +146,7 @@ Ahi vamos a seleccionar el archivo recien creado, el yaml de kubeconfig-template
 Le ponemos de id kubeconfig.
 
 
-**Crear un agente para los contenedores docker**
+### 1.6 Crear un agente para los contenedores docker
 
 Para ejecutar este agente debemos crear un usuario llamado jenkins. Este usuario tiene su clave ssh. Copiamos su clave pública y vamos a Administrar Jenkins, a Administrar nodos, Nuevo nodo y marco Agente permanente. 
 
@@ -162,11 +162,11 @@ Se va a lanzar pero la primera vez dará error. En la ventana de Jenkins, en el 
 
 Para este taller debemos tener instalado Java en el equipo donde se halla el agente Jenkins.
 
-**Mapear nuestro repo a Jenkins**
+### 1.7 Mapear nuestro repo a Jenkins
 
 Para ello, copiamos el enlace de nuestro repo y en Jenkins damos Nueva tarea, con la opción Multibranch Pipeline. Decimos que la fuente de la rama va a ser Github, ponemos nuestras credenciales y la URL del repo. Guardamos y el repo será generado y lo construirá. Para saber si todo ha ido OK, vamos al navegador y ponemos la ip de nuestro servidor (172.17.0.4:30001).
 
-**Subir el repositorio como si fuera un flujo de desarrollo**
+### 1.8 Subir el repositorio como si fuera un flujo de desarrollo
 
 Por ejemplo, cambiando el archivo app/app.js. Cambiamos la versión y en el Jenkinsfile hacemos lo propio.
 
@@ -184,7 +184,7 @@ kubectl port-forward deployment/nodejs-app-v4 3000:3000
 
 Si voy al navegador y compruebo, tendremos nuestra nueva versión operativa.
 
-**Blue/Green**
+### 1.9 Blue/Green
 
 Si hubiera un error durante el despliegue de una nueva versión, solo tenemos que ir dentro de la tarea de Jenkins a la pestaña de dicha versión, Restart from stage y opción Do Blue/Green. Damos en Run y se iniciará el proceso de construcción de nuevo. 
 

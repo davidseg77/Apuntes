@@ -1,6 +1,6 @@
 # Curso de AWS para desarrolladores (OW)
 
-### Lambda
+## 1. Lambda
 
 En Servicios, Lambda. Creamos función, author from scratch, ya que queremos crearla desde cero, damos nombre y escogemos runtime. Podemos añadir permisos, asociar a una VPC... Creamos.
 
@@ -10,13 +10,13 @@ Dentro de API Gateway escogemos una API de tipo HTTP. Damos nombre, y añadimos 
 
 Si ahora cambiamos el código y damos a Deploy, podrá mostrarse el contenido externamente.
 
-### SQS
+## 2.SQS
 
 Amazon Simple Queue Service (SQS) es un servicio de mensajería completamente administrado que permite enviar, almacenar y recibir mensajes entre componentes de aplicaciones distribuidas y sistemas. SQS forma parte de Amazon Web Services (AWS) y está diseñado para facilitar la construcción de sistemas escalables y tolerantes a errores.
 
 En servicios, Simple Queue Service. Creamos Queue, le damos nombre y en política de acceso le damos avanzado. Creamos, copiamos la URL que nos da y vamos a la terminal. 
 
-### Despliegue de aplicación con Elastic Beanstalk
+## 3. Despliegue de aplicación con Elastic Beanstalk
 
 Vamos a Servicios, Elastic Beanstalk, creamos aplicación y le damos nombre. 
 

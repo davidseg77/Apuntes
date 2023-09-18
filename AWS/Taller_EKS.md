@@ -1,16 +1,16 @@
 # Taller EKS OW
 
-### EKS
+## 1. EKS
 
 Ofrece un Control plane as a service, garantizando la disponiblidad. Nos da una URL para interactuar con nuestro clúster. Los contenedores se ejecutan bien en AWS Fargate, que es el servicio de AWS encargado de levantar contenedores sin necesidad de VM, o en instancias de EC2.
 
-**Añadir nodos**
+### 1.1 Añadir nodos
 
 Managed node groups. Son grupos de autoescalado de EC2 cuyas instancias se conectan automáticamente con nuestro clúster.
 
 AWs dispone de una plantilla AMI para nodos de EKS que mantiene actualizada y con las mejores configuraciones para AWS.
 
-### Creación de un clúster EKS
+## 2. Creación de un clúster EKS
 
 Vamos al servicio EKS y lo creamos con el nombre deseado. 
 
@@ -49,7 +49,7 @@ Para ver los servicios y asegurarnos de tener el del clúster:
 
 kubectl get services
 
-### Desplegar contenedores en nuestro clúster
+## 3. Desplegar contenedores en nuestro clúster
 
 Lo haremos en Fargate, pero antes crearemos un perfil en Fargate. Add Fargate Profile dentro de EKS, Cluster. Le damos nombre y necesitamos un rol para ejecutar los pods. Para ello, volvemos a IAM y en EKS, tenemos el rol EKS - Fargate Pod. Lo seleccionamos, damos nombre y asignamos rol. 
 
@@ -99,7 +99,7 @@ Verificamos que el cambio se ha producido
 kubectl get nodes
 ```
 
-### Node Groups (Grupos de nodos gestionados)
+## 4. Node Groups (Grupos de nodos gestionados)
 
 Vamos a crear nuestro grupo de nodos gestionados. Dentro de EKS, del cluster, add node groups. De ahí vamos a IAM, y seleccionamos EC2. Hay tres políticas básicas que tienen que teer estos nodos: AmazonEKSWorkerNodePolicy, AmazonEKS_CNI_Policy y AmazonEC2ContainerRegistryReadOnly. Escogidas las tres, damos nombre al rol y lo creamos.
 
@@ -161,7 +161,7 @@ Nos mostrará la URL pública del balanceador. De hecho, en EC2, en LoadBalancer
 
 También ha creado un nuevo Security Group. 
 
-### Consejos
+## 5. Consejos
 
 Es importante desactivar el acceso público cuando estamos en producción. Solo el privado.
 

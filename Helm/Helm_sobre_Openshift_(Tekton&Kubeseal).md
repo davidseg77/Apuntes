@@ -157,7 +157,7 @@ oc create -f mysealedsecret.yaml
 O bien podremos subirlo a cualquier repositorio sin problema, ya que será sólo nuestro clúster el que sea capaz de descifrarlo a través de las claves asimétricas.
 
 
-## 2.2 Establecer un ciclo CI/CD con Tekton
+### 2.2 Establecer un ciclo CI/CD con Tekton
 
 Este apartado es el más denso, ya que tekton se encarga de las configuraciones, las integraciones y procesos de despliegue, así que vamos a proceder a explicar qué es Tekton
 

@@ -1,6 +1,6 @@
 # Curso Helm
 
-### Instalación de Helm
+## 1. Instalación de Helm
 
 Si aún no tienes acceso de admin a un clister de Kubernetes, es el momento de instalarte uno en local con microK8S
 
@@ -13,7 +13,7 @@ Ejecuta estos comandos en tu ordenador Linux o Mac:
  export KUBECONFIG=/tmp/kubeconfig
 ```
 
-**Instalar Helm**
+### 1.1 Instalar Helm
 
 Se instala fácilmente con snap:
 
@@ -45,7 +45,7 @@ Vamos al navegador y accedemos al servicio.
 
 En mi caso, he tenido que instalar minikube en mi Ubuntu Desktop y después iniciarlo.
 
-### Comandos básicos
+## 2. Comandos básicos
 
 Para actualizar el tiller a la última version de helm:
 
@@ -80,7 +80,7 @@ Veamos aquí algunos de ellos en forma de listado:
 * helm delete         # Elimina una release del cluster, pero dejará los datos en el cluster. Se verifica con helm ls -a
 * helm delete --purge   # Elimina una release del cluster al completo
 
-### Repositorios de aplicaciones para Kubernetes
+## 3. Repositorios de aplicaciones para Kubernetes
 
 Son APIs (normalmente con una web para consultarlo desde el navegador) a las que accede el CLI de Helm para poder instalar los charts.
 
@@ -92,7 +92,7 @@ Puedes acceder a KubeApps Hub, bucear entre los charts que ofrece y los distinto
 
 Los nombres de los charts están compuestos por su repositorio y su nombre dentro del repositorio: /. Por ejemplo stable/wordpress se refiere al repositorio stable y al chart wordpress dentro de él. jfrog/artifactory se refiere al repositorio jfrog (que pertenece a la empresa con el mismo nombre) y al chart artifactory (un producto de esa empresa, que lo distribuye a través de Helm).
 
-### Instalación de una aplicación, de un chart
+## 4. Instalación de una aplicación, de un chart
 
 helm install instala un chart en tu clúster. Lo que hace en realidad es crear una nueva release del chart que tú quieras.
 
@@ -122,7 +122,7 @@ Ejecuta helm install --help para ver todas las opciones de configuración. Las m
 
 Visita la página de documentación sobre este comando: https://helm.sh/docs/helm/#helm-install
 
-### Actualización de una aplicación, de un chart
+## 5. Actualización de una aplicación, de un chart
 
 ```
 helm upgrade <RELEASE NAME> stable/mediawiki
@@ -136,7 +136,7 @@ Las opciones son prácticamente las mismas que en helm install. Simplemente en h
 
 Visita la página de documentación sobre este comando: https://helm.sh/docs/helm/#helm-upgrade
 
-**Rollback**
+### 5.1 Rollback
 
 Puedes listar todas las revisiones de una release con el comando:
 
@@ -159,7 +159,7 @@ https://helm.sh/docs/helm/#helm-history
 
 https://helm.sh/docs/helm/#helm-rolback
 
-### Despliegue de un repositorio privado
+## 6. Despliegue de un repositorio privado
 
 Después de instalar y actualizar un servidor mediawiki, vamos a instalar otra aplicación similar.
 
@@ -212,7 +212,7 @@ helm repo remove # Elimina un repositorio
 helm search # Busca charts en todos los repositorios configurados
 ```
 
-### Instalar un kubeadds privado
+## 7. Instalar un kubeadds privado
 
 Vamos a desplegar otra aplicación más antes de terminar la sección.
 
@@ -224,11 +224,11 @@ https://github.com/kubeapps/kubeapps/blob/master/docs/user/getting-started.md
 
 El token se copia dentro de la web de KubeApps.
 
-### ¿Qué son los charts?
+## 8. ¿Qué son los charts?
 
 Los charts (paquetes) de Helm contienen archivos YAML de Kubernetes (Deployments, services, statefulsets, ingresses, etc.). Estos se pueden personalizar o templatizar con el leguaje de templates de Go.
 
-**Templates**
+### 8.1 Templates
 
 Todos los templates se almacenan en una carpeta llamada templates dentro de la carpeta raiz del chart.
 
@@ -273,7 +273,7 @@ De esta manera es como especificamos dentro del template dónde queremos que esa
 
 Aparte de los templates tenemos varios archivos importantes:
 
-**Chart.yaml**
+### 8.2 Chart.yaml
 
 ```
 apiVersion: The chart API version, always "v1" (required)
@@ -285,15 +285,15 @@ version: A SemVer 2 version (required)
 
 Contiene la definición del chart (name, version, description, maintainers, etc)
 
-**values.yaml**
+### 8.3 values.yaml
 
 Contiene los values (variables) por defecto del chart. Estos values pueden ser personalizados al instalar o actualizar el chart, pero si no se especifican, se tomarán los que se encuentren en este archivo.
 
-**REAMDE.md**
+### 8.4 REAMDE.md
 
 README con instrucciones para instalar y utilizar la aplicación, junto con una explicación de los values disponibles.
 
-**templates/NOTES.txt**
+### 8.5 templates/NOTES.txt
 
 Este archivo también es un template. Pero en vez de ser un archivo YAML para desplegar el Kubernetes, es un archivo .txt que se muestra cuando se instala o actualiza la aplicación con éxito. Suele contener instrucciones para comenzar a utilizarla.
 
@@ -309,7 +309,7 @@ El árbol de directorios sería:
 └── values.yaml
 └── README.md
 
-### Creación de un chart: Deployment y personalización
+## 9. Creación de un chart: Deployment y personalización
 
 Para crear un chart solo necesitas definir los archivos que hemos comentado en el video anterior.
 
@@ -355,7 +355,7 @@ image: nginx:latest
 
 .Release es un objeto que siempre está presente y que contiene información sobre la release en concreto. En este caso hemos utilizado .Release.name para llamar y etiquetar nuestro deployment con el mismo nombre que la release, añadiéndole -nginx al final. Y .Release.namespace para desplegar el deployment en el namespace que se especifique al instalar el chart.
 
-**Debuggear los templates**
+### 9.1 Debuggear los templates
 
 Siempre que creamos código es bueno saber cómo podemos verlo en acción. En este caso queremos ver si nuestro deployment.yaml está bien construido y nos daría el YAML que queremos después de renderizarlo (esto es, después de sustituir todas las partes dinámicas). Lo podemos hacer con:
 
@@ -365,7 +365,7 @@ helm install . --dry-run --debug
 
 Esto simulará una instalación del chart pero sin crear absolutamente nada (—dry-run). Y con —debug nos imprimirá en pantalla todos los YAML para que podamos observarlos antes de continuar.
 
-### Creación del chart.yaml y del values.yaml
+## 10. Creación del chart.yaml y del values.yaml
 
 En el **chart.yaml** es donde definimos el chart en si. 
 
@@ -393,7 +393,7 @@ No es imprescindible, pero es bueno tener el **notes.txt**. Es el fichero donde 
 {{ .Release.Name }} have been deployed successfully in namespace {{ .Release.Namespace}} !
 ```
 
-### Creación de un chart: Despliegue y actualización
+## 11. Creación de un chart: Despliegue y actualización
 
 Para desplegarlo:
 
@@ -413,7 +413,7 @@ Para volver a una version anterior:
 helm rollback myrelease 1 (El 1 hace a la versión inicial, que puede comprobarse con helm history myrelease)
 ```
 
-### Subida del chart a nuestro repositorio privado
+## 12. Subida del chart a nuestro repositorio privado
 
 Primero hay que empaquetar nuestro chart. Esto es, crear un archivo comprimido tar.gz que podamos subir fácilmente a nuestro repositorio. Helm tiene un comando para ello:
 
@@ -425,13 +425,13 @@ A continuación lo subimos al repositorio. La manera manual de hacerlo es simple
 
 En realidad la manera más sencilla de hacerlo es utilizar el plugin helm push que realiza directamente el empaquetado y lo sube al repositorio todo en un paso:
 
-**Instala el plugin**
+### 12.1 Instala el plugin
 
 ```
 helm plugin install https://github.com/chartmuseum/helm-push
 ```
 
-**Empaqueta y sube el chart**
+### 12.2 Empaqueta y sube el chart
 
 ```
 helm push .
@@ -441,7 +441,7 @@ Hay muchísimas más opciones para gestionar los repositorios de Helm. Si estuvi
 
 En concreto, Chart Museum (nuestro repositorio privado), automatiza la gestión del índice del repositorio, pieza que necesitarás controlar tú en caso de no usar Chart Museum y su API o el plugin helm push.
 
-**Versionado de paquetes**
+### 12.3 Versionado de paquetes
 
 La versión de un chart está definida en el archivo chart.yaml
 
@@ -449,9 +449,9 @@ Helm utiliza semantic versioning para numerar las versiones de un chart.
 
 Puedes elegir la versión al instalar un chart nuevo con el argumento --version de helm install y helm upgrade
 
-### Sintaxis de Helm y condicionales
+## 13. Sintaxis de Helm y condicionales
 
-**Condicionales**
+### 13.1 Condicionales
 
 Documentación: https://helm.sh/docs/chart_template_guide/#if-else
 
@@ -476,7 +476,7 @@ En este ejemplo, si existe el value customVar, inserta esa pieza de código. Si 
 
 El guion después de la llave {{- sirve para que Helm quite la línea en blanco que dejaría ese comando.
 
-**Bucles**
+### 13.2 Bucles
 
 Documentación: https://helm.sh/docs/chart_template_guide/#looping-with-the-range-action
 
@@ -509,9 +509,9 @@ annotations:
   ...
 ```
 
-### Sintaxis avanzada: Variables, pipelines y funciones
+## 14. Sintaxis avanzada: Variables, pipelines y funciones
 
-**Variables**
+### 14.1 Variables
 
 Documentación: https://helm.sh/docs/chart_template_guide/#variables
 
@@ -532,7 +532,7 @@ deployName sería -server
 
 Es muy útil para no repetir fragmentos de código complicados y simplificar la gestión de los templates.
 
-**Pipelines y funciones**
+### 14.2 Pipelines y funciones
 
 Documentación: https://helm.sh/docs/chart_template_guide/#template-functions-and-pipelines
 
@@ -548,7 +548,7 @@ Las funciones son de muchos tipos. Por ejemplo el printf del apartado anterior e
 
 Puedes encontrar las más útiles en la documentación anterior
 
-**Temas más avanzados**
+### 14.3 Temas más avanzados
 
 * Lectura de ficheros externos
 
@@ -556,7 +556,7 @@ Puedes encontrar las más útiles en la documentación anterior
 
 * Hooks
 
-### Dependencias
+## 15. Dependencias
 
 Puedes incluir cualquier otro chart(s) como dependencias de tu aplicación. Por ejemplo, bases de datos.
 
@@ -588,9 +588,9 @@ Hay muchas más posibilidades para gestionar nuestras dependencias, te invito a 
 
 https://helm.sh/docs/charts/#chart-dependencies
 
-### Integración continua con Helm
+## 16. Integración continua con Helm
 
-**Creación del servidor**
+### 16.1 Creación del servidor
 
 En resumen, es una aplicación web en Python (app.py y requirements.txt), que se ejecuta dentro de un Dockerfile y que a su vez incluye un chart de Helm para desplegarla de forma automática en Kubernetes.
 
@@ -667,7 +667,7 @@ spec:
     port: 5000
 ```
 
-**Ciclo de vida: Despliegue**
+### 16.2 Ciclo de vida: Despliegue
 
 * deploy.sh
   
@@ -709,7 +709,7 @@ helm upgrade myexampleapp ./helm-chart --set image=localhost:32000/myapp --set c
 
 Y en el navegador, veremos como los cambios se producen de inmediato.
 
-**Ciclo de vida: Integración continua**
+### 16.3 Ciclo de vida: Integración continua
 
 Primero, lanzamos el build.sh con la versión inicial como parámetro. 
 
@@ -717,7 +717,7 @@ Hacemos helm repo update y con helm search + nombre de la app vemos si la versi�
 
 Segundo, lanzamos el deploy.sh con la versión siguiente, nombre de entorno y la modificación a realizar si se deseara.
 
-### Desarrollo local con Skaffold
+## 17. Desarrollo local con Skaffold
 
 Helm también es perfecto para entornos locales ya que almacena todo lo necesario para desplegar tu aplicación en un cluster de Kubernetes local y facilitar el desarrollo.
 
@@ -755,15 +755,15 @@ skaffold dev --port-forward
 
 Además, Skaffold creará automáticamente un túnel entre nuestra carpeta y el pod en Kubernetes (apartado sync del skaffold.yaml), y también un túnel de red para que podamos acceder a nuestra aplicación con localhost (--port-forward), con lo que podemos desarrollar como si estuviésemos en un entorno local, pero en realidad la aplicación está levantada automáticamente en Kubernetes, con todas sus dependencias y en un entorno completamente igual al de producción.
 
-### Herramientas complementarias con Helm que facilitan su uso
+## 18. Herramientas complementarias con Helm que facilitan su uso
 
-**Chartify**
+### 18.1 Chartify
 
 Chartify genera nuevos charts de Helm a partir de recursos ya existentes en tu clúster, o a partir de sus YAML. Es perfecto si ya tienes tus aplicaciones definidas en Kubernetes y quieres empezar a usar Helm.
 
 https://github.com/appscode/chartify
 
-**Helmfile**
+### 18.2 Helmfile
 
 Helmfile permite definir tus releases de forma declarativa. De esta forma sustituyes los comandos de instalación o actualización de todas tus aplicaciones por un fichero de configuración, con todas tus releases y sus values, que puedes aplicar al mismo tiempo.
 
@@ -771,27 +771,27 @@ Es la pieza que faltaba para poder definir toda la infraestructura de forma decl
 
 https://github.com/roboll/helmfile
 
-**Helm backup**
+### 18.3 Helm backup
 
 Realiza y restaura backups de releases de Helm. Bueno para un disaster recovery rápido y para tener una segunda copia de la información de las releases (recordamos que Helm ya almacenaba esa información en config maps)
 
 https://github.com/maorfr/helm-backup
 
-**Helm Value Store**
+### 18.4 Helm Value Store
 
 Es una base de datos para los values de las releases. Permite almacenar esas variables para facilar su uso, de otra manera sería más desordenado.
 
 https://github.com/skuid/helm-value-store
 
-**Helm edit**
+### 18.5 Helm edit
 
 Permite editar los values directamente en un editor de código
 
 https://github.com/mstrzele/helm-edit
 
-### Seguridad en Helm y puesta en producción
+## 19. Seguridad en Helm y puesta en producción
 
-**Seguridad en el Tiller**
+### 19.1 Seguridad en el Tiller
 
 Para poder operar correctamente, el Tiller necesita permisos muy amplios en el clúster de Kubernetes. De hecho en la instalación por defecto (al hacer helm init), se otorga a sí mismo permisos de administrador del clúster.
 
@@ -801,7 +801,7 @@ Es un problema porque todo el que tenga acceso al Tiller (es decir, todos los us
 
 Por suerte hay varias medidas que podemos tomar.
 
-**RBAC**
+### 19.2 RBAC
 
 RBAC (role-based access control) es el sistema de control de accesos más común en Kubernetes, y desde luego el más potente.
 
@@ -811,7 +811,7 @@ Link a la documentación
 
 Otra opción muy común es desplegar varios tillers en el mismo clúster, cada uno con permisos para distintos namespaces.
 
-**TLS Auth**
+### 19.3 TLS Auth
 
 Como hemos comentado anteriormente, el Tiller no autentica de ninguna manera a los clientes. Es decir cualquier usuario de Kubernetes con unos permisos mínimos podría utilizar Helm, posiblemente con más privilegios de los que tiene asignados.
 
@@ -819,7 +819,7 @@ Helm implementa un sistema de autenticación con certificados TLS. Es un buen si
 
 Link a la documentación
 
-**Almacenar releases en secrets**
+### 19.4 Almacenar releases en secrets
 
 Helm almacena toda la información sobre las releases en config maps, es decir, en texto plano. Esto es peligroso porque en esa información puede haber values como contraseñas, etc. Por suerte, existe la posibilidad de configurar el Tiller para que guarde esa información en secrets en vez de configmaps.
 
@@ -827,7 +827,7 @@ También es interesante la opción --history-max para prevenir que se puedan cre
 
 Link a la documentación
 
-**Tiller local (Tillerless Helm plugin)**
+### 19.5 Tiller local (Tillerless Helm plugin)
 
 Con este plugin puedes prescindir de levantar un Tiller en el clúster. Lo que hace en realidad es levantar un Tiller temporal cada vez que ejecutas una operación. Pero este Tiller temporal nunca tiene más permisos que los del propio usuario que lo ejecuta, al contrario que el Tiller normal, que necesita muchos permisos para funcionar.
 
@@ -835,7 +835,7 @@ Link a la documentación
 
 Helm CRD
 
-**Helm en producción**
+### 19.6 Helm en producción
 
 Siguiendo los consejos anteriores puedes tener Helm en un clúster en producción con seguridad de que nadie va a tener más permisos por utilizar Helm. En resumen:
 

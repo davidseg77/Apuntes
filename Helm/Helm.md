@@ -75,7 +75,7 @@ Versión del gráfico de la que depende
 
 Repositorio que depende de Helm Chart
 
-**Actualice las dependencias para el gráfico**
+## 1. Actualice las dependencias para el gráfico
 
 Esto descarga los gráficos agregados como dependencias y bloquea sus versiones.
 
@@ -88,7 +88,7 @@ Downloading mariadb from repo https://charts.bitnami.com/bitnami
 Deleting outdated charts
 ```
 
-**Use el comando helm install para implementar la aplicación en el clúster de RHOCP:**
+## 2. Use el comando helm install para implementar la aplicación en el clúster de RHOCP:
 
 ```
 [student@workstation famouschart]$ helm install famousapp .
@@ -101,7 +101,7 @@ NOTES:
 ...output omitted...
 ```
 
-**Para crear un helm chart**
+## 3. Para crear un helm chart
 
 ```
 [student@workstation multicontainer-review]$ helm create exochart
@@ -116,7 +116,7 @@ Las variables de entorno se agregan al final del archivo values.yaml
 
 Después se accede a openshift y se inserta el helm con helm install + nombre del helm
 
-**Use el comando helm template para extraer las definiciones de objetos de un Helm Chart en la definición base del kustomize:**
+## 4. Use el comando helm template para extraer las definiciones de objetos de un Helm Chart en la definición base del kustomize:
 
 ```
 [student@workstation exokustom]$ helm template exoplanets \

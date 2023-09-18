@@ -1,14 +1,14 @@
 # Apuntes sobre el curso básico de Jenkins
 
-### Instalación de Jenkins en Ubuntu con Docker
+## 1. Instalación de Jenkins en Ubuntu con Docker
 
-**Comando para tirar de Jenkins en Docker Hub**
+### 1.1 Comando para tirar de Jenkins en Docker Hub
 
 ```
 docker pull jenkins/jenkins:lts
 ```
 
-**Comando para crear el contenedor Jenkins**
+### 1.2 Comando para crear el contenedor Jenkins
 
 ```
 docker run -d -v $(pwd)/jenkins_home:/var/jenkins_home -p 8080:8080 -p 50000:50000 -p 9080:9080 -e JENKINS_OPTS="--httpPort=9080" --name jenkins jenkins/jenkins:lts
@@ -33,17 +33,17 @@ En caso de error al iniciar el contenedor, habría que dar permisos al directori
 sudo chown -R 1000:1000 /home/david/jenkins_home
 ```
 
-**Comando para ver los registros y dar con la contraseña admin para acceder a Jenkins**
+### 1.3 Comando para ver los registros y dar con la contraseña admin para acceder a Jenkins
 
 ```
 docker logs -f jenkins
 ```
 
-**Para acceder a las funciones CLI de Jenkins**
+### 1.4 Para acceder a las funciones CLI de Jenkins
 
 http://localhost:9080/cli/
 
-### Comandos disponibles
+## 2. Comandos disponibles
 
 **add-job-to-view**	Adds jobs to view.
   
@@ -185,15 +185,15 @@ http://localhost:9080/cli/
 
 **who-am-i**	Muestra tus credenciales y permisos
 
-### Plugins
+## 3. Plugins
 
 Importante instalar el Role-based Authorization Strategy
 
-### Crear job
+## 4. Crear job
 
 En el apartado general, podemos especificar todo aquello que queremos insertar en nuestra tarea. Por ejemplo, uso de comandos, o bien parámetros, o combinar todo esto...
 
-**Crear job con Maven**
+### 4.1 Crear job con Maven
 
 Creada la tarea, en general, en la sección de ejecutar podemos hacer uso de comandos maven. 
 
@@ -205,17 +205,17 @@ docker exec -it -u root jenkins /bin/bash -c "apt update; apt install maven -y"
 
 También podemos instalar el plugin Maven Integration. Hecho esto, en global tool configuration abajo del todo tenemos la opción de añadir Maven y darle un nombre (por ej, MAVEN_HOME). Si creamos una tarea, nos aparecerá la opción **crear un proyecto Maven**. 
 
-### Crear jobs anidados
+## 5. Crear jobs anidados
 
 Crear las tareas a anidar. Después, vamos en orden configurando cada tarea. La segunda tarea, vamos a Disparadores de ejecuciones e indicamos que queremos construir detrás de otro proyecto. Dentro de esta segunda tarea, bajamos y añadimos en Ejecutar que queremos ejecutar otros proyectos. 
 
-### Crons
+## 6. Crons
 
 Para nomenclaturas de crontabs, es recomendable visitar la web **crontab guru**.  
 
 Un cron en Jenkins se añade en el campo Ejecutar periodicamente, dentro de Disparador de Ejecuciones. 
 
-### Analizar y recopilar info mediante Jenkins
+## 7. Analizar y recopilar info mediante Jenkins
 
 Creada la tarea con Maven, en Proyecto, además de añadir Clean Package, hacemos lo propio con checkstyle:checkstyle para recopilar la info analizada del repositorio indicado. Abajo del todo, agregamos una acción, guardar los archivos generados. Es decir, vamos a guardar la info recopilada, en este caso todos los archivos de extensión .war 
 
@@ -223,7 +223,7 @@ Creada la tarea con Maven, en Proyecto, además de añadir Clean Package, hacemo
 **/*.war
 ```
 
-### Creación de una pipeline
+## 8. Creación de una pipeline
 
 Creamos tarea en modo pipeline. Bajamos hasta el apartado Pipeline, donde podemos desplegar, por ejemplo, la opción Git + Maven como la escogida para el diseño de nuestra pipeline. 
 
@@ -341,13 +341,13 @@ Otra opcion, en caso de que el contenedor de jenkins ya no contara con el comand
 kill $(jps -m | grep Launcher | awk '{print $1}')
 ```
 
-### Herramientas Jenkins
+## 9. Herramientas Jenkins
 
 **CatLight**
 
 Monitorea los jobs o pipelines. Facil de instalar y usar.
 
-### Notificación por email
+## 10. Notificación por email
 
 En Configuración, bajamos hasta notificación por correo electrónico.
 
@@ -360,7 +360,7 @@ Puede haber error, para ello debemos ir a la url de google y permitir el acceso 
 
 Para que el resultado de un job o pipeline nos sea enviado, nos vamos abajo en configuración, al apartado acciones para ejecutar después. Ahí indicamos que nos notifiquen por email.
 
-### Home Backup
+## 11. Home Backup
 
 Creamos una tarea para hacer lo siguiente:
 
@@ -371,9 +371,9 @@ Creamos una tarea para hacer lo siguiente:
     - mkdir $JENKINS_HOME/backups
     - tar -zcvf $JENKINS_HOME/backups/backup_jenkins_home.tar.gz exclude='$JENKINS_HOME/backups' $JENKINS_HOME | true
 
-### Herramientas para exprimir nuestro código
+## 12. Herramientas para exprimir nuestro código
 
-**Oxygen**
+### 12.1 Oxygen
 
 Para instalarlo
 
@@ -399,13 +399,13 @@ python3 -m http.server 8888 --directory html
 Apunta el navegador a la dirección http://192.169.1.153:8888 (acuérdate de cambiar
 la dirección IP y poner la de tu máquina) y podrás navegar por la documentación generada con DOxygen.
 
-**Plugin HTML Publisher**
+### 12.2 Plugin HTML Publisher
 
 Es un plugin dentro de Jenkins que permite mostrar la documentación de una pipeline.
 
 Si creo un archivo de tipo pipeline y lo subo a mi repositorio, con Jenkins puedo subirlo como tarea y al lanzarlo me mostrará la documentación generada por este plugin.
 
-**Pipeline Syntax**
+### 12.3 Pipeline Syntax
 
 Snippet Generator: Dentro podremos escoger la opción archive artifacts. Lo indicamos con un nombre para el artefacto, por ejemplo, documentation.zip, el cual deberemos añadir en uno de los pasos del archivo pipeline con este comando:
 
@@ -421,9 +421,9 @@ archive 'documentation.zip'
 
 Se comitean estos cambios y en Jenkins lo indicamos en la configuración (lo del artefacto) y volvemos a construir.
 
-### Herramientas para analizar nuestro código
+## 13. Herramientas para analizar nuestro código
 
-**cppcheck**
+### 13.1 cppcheck
 
 Para instalarlo:
 
@@ -467,9 +467,9 @@ Se comitean los cambios y si volvemos a Jenkins consola web y construimos la pip
 
 Podría haber un error con el directorio report al no encontrarse en el repo. Para ello se crearían con git add -f.
 
-### Herramientas para hacer testing automatizado
+## 14. Herramientas para hacer testing automatizado
 
-**Mocka**
+### 14.1 Mocka
 
 Instalación
 
@@ -497,7 +497,7 @@ y generar el informe:
 * make tests
 * make tests-xml
 
-**Pipeline Syntax**
+### 14.2 Pipeline Syntax
 
 Snippet Generator: Dentro podremos escoger la opción junit: Archive junit-formatted test results. En test reports xml, incluimos la ruta: tests/cmocka/*.xml y generamos el pipeline script.
 

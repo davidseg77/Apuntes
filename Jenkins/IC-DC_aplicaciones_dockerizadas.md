@@ -1,13 +1,13 @@
 # Taller de Jenkins para IC/DC de aplicaciones dockerizadas
 
-## Caso práctico
+## 1. Caso práctico
 
-**1. Creación de un Dockerfile**
+### 1.1 Creación de un Dockerfile
 
 
 En primer lugar, hemos de tener una cuenta en Docker y Jenkins instalado en un servidor. Hecho esto, vamos a ese servidor de Jenkins y dentro de /opt creamos un directorio para nuestro Dockerfile. Va a ser un Dockerfile sencillo que va a contener una imagen de Nginx. 
 
-**2. Añadir credenciales Docker en Jenkins**
+### 1.2 Añadir credenciales Docker en Jenkins
 
 A continuación, vamos a añadir nuestras credenciales de Docker en nuestro servidor Jenkins. Si accedemos a la IP del servidor con su puerto correspondiente (8080), añadiríamos /credentials/store/system/domain/_/newCredentials:
 
@@ -19,7 +19,7 @@ Introducimos el usuario y la contraseña de Docker y en ID ponemos dockerhub. Y 
 
 Creadas las credenciales, vamos a crear un Jenkinsfile.
 
-**3. Crear Jenkinsfile (Pipeline)**
+### 1.3 Crear Jenkinsfile (Pipeline)
 
 Y vamos a crear tarea, de tipo Pipeline, y nos vamos al script de este Pipeline.
 
@@ -69,7 +69,7 @@ pipeline {
 }
 ```
 
-**4. Ejecución del Jenkinsfile (Pipeline)**
+### 1.4 Ejecución del Jenkinsfile (Pipeline)
 
 Aplicamos y guardamos. Le damos a construir, y si hubiera algún error durante la ejecución de nuestra pipeline lo consultamos en los logs. Si todo va correctamente, accedemos al navegador con el puerto correspondiente y listo.
 
