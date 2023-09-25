@@ -992,7 +992,7 @@ oc new-app app4 --name=app4
 oc expose service app4
 ```
 
-#### 3.4.1Primera modificación: Modificación de la aplicación
+#### 3.4.1 Primera modificación: Modificación de la aplicación
 
 ¿Qué pasa si mi equipo de desarrollo saca una nueva versión de la aplicación y queremos desplegar esta nueva versión?. Para ello vamos a modificar la aplicación y luego vamos a lanzar una nueva construcción:
 
@@ -1475,7 +1475,7 @@ Podemos indicar algunos detalles importantes:
  - El primer disparador es de tipo ConfigChange, que provocará que se desencadene una nueva implementación si cambian algunos de los parámetros de configuración del DeploymentConfig.
  - El segundo disparador es de tipo ImageChange, que provocará que se desencadene una nueva implementación si cambia la imagen utilizada por el contenedor. El campo from especifica la fuente de la nueva imagen, en este caso un ImageStreamTag llamado test-web:v1. El campo automatic especifica si el cambio de imagen debe detectarse automáticamente o no.
 
-#### 4.2.1 Escalado de los Deployments**
+#### 4.2.1 Escalado de los Deployments
 
 Como ocurría con los Deployments, los DeploymentConfig también se pueden escalar, aumentando o disminuyendo el número de Pods asociados. Al escalar un DeploymentConfig estamos escalando el ReplicationController asociado en ese momento:
 
