@@ -2,7 +2,7 @@
 
 ## 1. Despliegue de aplicaciones en OpenShift v4
 
-### Despliegue de aplicaciones desde imágenes con oc
+### 1.1 Despliegue de aplicaciones desde imágenes con oc
 
 Para crear un despliegue desde la imagen josedom24/test_web:v1 que se llame test-web ejecutamos el comando:
 
@@ -63,9 +63,9 @@ Para eliminar la aplicación, tenemos que borrar los recursos que hemos creado:
  oc delete is test-web
 ```
 
-### Despliegue de aplicaciones desde código fuente con oc
+### 1.2 Despliegue de aplicaciones desde código fuente con oc
 
-**Despliegue de una página estática con un servidor apache2**
+#### 1.2.1 Despliegue de una página estática con un servidor apache2
 
 Queremos construir una imagen con un servidor web a partir de un repositorio donde tenemos una página web estática, para ello ejecutaremos:
 
@@ -116,7 +116,7 @@ oc expose service app1
 
 Y accedemos a la aplicación.
 
-**Despliegue de una página estática con un servidor nginx**
+#### 1.2.2 Despliegue de una página estática con un servidor nginx
 
 Si queremos crear una aplicación con la página web de nuestro repositorio con una imagen basada en nginx, podemos buscar los recursos Images Stream que tenemos en el catálogo:
 
@@ -130,7 +130,7 @@ Y posteriormente creamos la aplicación con el comando:
 oc new-app nginx~https://github.com/josedom24/osv4_html.git --name=app2
 ```
 
-**Detección automática del Builder Image**
+#### 1.2.3 Detección automática del Builder Image
 
 OpenShift examina el repositorio y según los ficheros que tengamos es capaz de determinar con que lenguaje está escrito y te sugiere un Builder Image .
 
@@ -169,7 +169,7 @@ oc new-app php:7.3-ubi7~https://github.com/josedom24/osv4_html.git --name=app4
 oc expose service app4
 ```
 
-**Eliminar la aplicación**
+#### 1.2.4 Eliminar la aplicación
 
 Por ejemplo, para eliminar la aplicación app1 tendríamos que eliminar todos los recursos generados:
 
@@ -181,11 +181,11 @@ oc delete is app1
 oc delete bc app1
 ```
 
-### Despliegue de aplicaciones desde código fuente desde la consola web
+### 1.3 Despliegue de aplicaciones desde código fuente desde la consola web
 
 Vamos a realizar el mismo ejercicio pero desde la consola web. Para ello accedemos desde la vista Developer a la opción de +Add y elegimos el apartado Git Repository.
 
-**Despliegue de una página estática con un servidor apache2**
+Despliegue de una página estática con un servidor apache2**
 
 Queremos construir una imagen con un servidor web a partir de un repositorio donde tenemos una página web estática, para ello vamos a configurar el despliegue.
 
@@ -195,7 +195,7 @@ Vemos que ha seleccionado la estrategia de construcción (Builder Image) pero, c
 
 Una vez lo hemos hecho, seguimos con la configuración de forma similar al despliegue de una imagen.
 
-### Despliegue de aplicaciones desde Dockerfile con oc
+### 1.4 Despliegue de aplicaciones desde Dockerfile con oc
 
 Sigamos trabajando con el mismo repositorio y ahora vamos a suponer que queremos ejecutar nuestra aplicación con otra imagen base y hacer una configuración extra en la creación de la imagen. Tendríamos que crear un fichero Dockerfile para especificar los pasos de creación de la imagen. Para ello, creamos un fichero Dockerfile en el repositorio con el siguiente contenido:
 
@@ -227,9 +227,9 @@ oc new-app https://github.com/josedom24/osv4_html.git --name=app2 --strategy=sou
 
 Y volverá a usar el mecanismo anterior.
 
-### Despliegue de aplicaciones desde el catálogo con oc
+### 1.5 Despliegue de aplicaciones desde el catálogo con oc
 
-**Despliegue de Templates en OpenShift**
+#### 1.5.1 Despliegue de Templates en OpenShift
 
 Los Templates que nos ofrece OpenShift y que están guardados en el catálogo de aplicaciones, lo podemos encontrar en el proyecto openshift, para listar los que tenemos a nuestra disposición:
 
@@ -275,7 +275,7 @@ oc exec pod/mariadb-1-pb49r -it pod/mariadb-1-pb49r -- mysql -u jose -pasdasd -h
 
 ## 2. ImageStreams: Gestión de imágenes en OpenShift v4
 
-### ImageStream a imágenes del registro interno
+### 2.1 ImageStream a imágenes del registro interno
 
 Las ImageStreams que apuntan a imágenes internas, la podemos encontrar en el catálogo, por ejemplo si buscamos por la palabra "httpd", podemos encontrar:
 
@@ -311,12 +311,12 @@ Finalmente indicar que con el comando oc get images ejecutado como administrador
 oc get images | grep httpd
 ```
 
-**Uso de las ImageStream internas**
+#### 2.1.1 Uso de las ImageStream internas
 
 Como hemos indicado, usaremos las ImageStream para la creación de nuevas aplicaciones o la construcción de nuevas imágenes.
 
 * *Creación de un nuevo despliegue*
-* 
+  
 Por ejemplo, podríamos desplegar una nueva aplicación a partir de la ImageStream httpd:2.4:
 
 ```  
@@ -331,7 +331,7 @@ oc describe deploy web1
 
 Evidentemente su ID coincide con la imagen que vimos anteriormente y que estaba apuntada por httpd:2.4.
 
-**Construcción de imágenes**
+#### 2.1.2 Construcción de imágenes
 
 Del mismo modo vamos a usar la ImageStream httpd:2.4 como base para crear otra imagen:
 
@@ -353,11 +353,11 @@ Y comprobamos que se ha creado esa imagen en el registro interno:
 oc get images | grep web2
 ```
 
-### Creación de ImageStream
+### 2.2 Creación de ImageStream
 
 Tenemos tres maneras de crear recursos ImageStream:
 
-**1. Creación de ImageStream con new-app**
+#### 2.2.1 Creación de ImageStream con new-app
 
 Cada vez que creamos un nuevo despliegue con la instrucción oc new-app se crea una objeto ImageStream que apunta a la imagen utilizada o construida. Por ejemplo:
 
@@ -387,7 +387,7 @@ Finalmente podemos comprobar que tenemos la imagen en nuestro registro interno:
 oc get images|grep nginx
 ```
 
-**2. Creación de ImageStream con import-image**
+#### 2.2.2 Creación de ImageStream con import-image
 
 Otra manera de crear recursos ImageStream es usando el comando import-image. En este caso indicamos el nombre de la ImageStream y la imagen a la que apunta. En este ejemplo vamos a utilizar el mismo nombre y vamos a apuntar a otra imagen indicando otra etiqueta:
 
@@ -440,7 +440,7 @@ Para terminar, podríamos usar este ImageStream para desplegar una nueva aplicac
 oc new-app web4:2.4.57 --name apache1
 ```
 
-**3. Creación de ImageStream con fichero YAML**
+#### 2.2.3 Creación de ImageStream con fichero YAML
 
 La definición de un objeto ImageStream es muy sencilla. Por ejemplo, podemos tener guardada la definición en el fichero is.yaml:
 
@@ -465,9 +465,9 @@ oc apply -f is.yaml
 oc get is
 ```
 
-### Gestión de las etiquetas en un ImageStream
+### 2.3 Gestión de las etiquetas en un ImageStream
 
-**Crear nuevas etiquetas en un ImageStream**
+#### 2.3.1 Crear nuevas etiquetas en un ImageStream
 
 Para hacer este ejercicio vamos a crear una ImageStream que tendrá dos etiquetas que apuntan a las dos versiones de la imagen josedom24/citas-backend. Para ello, ejecutamos:
 
@@ -508,7 +508,7 @@ oc tag citas:latest -d
 oc delete istag citas:latest
 ```
 
-**Ejemplo: Actualización de despliegue por cambio de imagen**
+#### 2.3.2 Ejemplo: Actualización de despliegue por cambio de imagen
 
 Vamos a crear un despliegue utilizando el ImageStream citas:prod (que actualmente apunta a la versión 1 de la imagen). Hay que tener en cuenta que la imagen usa el puerto TCP/10000 para ofrecer el servicio:
 
@@ -550,7 +550,7 @@ curl http://app-citas-josedom24-dev.apps.sandbox-m3.1530.p1.openshiftapps.com/ve
 v2
 ```  
 
-### Actualización automática de ImageStream
+### 2.4 Actualización automática de ImageStream
 
 Cuando creamos un nuevo ImageStream que apunta a una imagen, podemos activar una funcionalidad que periódicamente comprueba si la imagen ha cambiado, y en caso afirmativo, actualiza el ImageStream para que apunte a la nueva imagen. Por defecto, el periodo de comprobación es de 15 minutos.
 
@@ -624,9 +624,9 @@ oc logs deploy/app-prueba
 
 ## 3. Builds: Construcción automática de imágenes
 
-### Construcción de imágenes con estrategia Source-to-Image (S2I)
+### 3.1 Construcción de imágenes con estrategia Source-to-Image (S2I)
 
-**Despliegue de la aplicación con la estrategia Source-to-image**
+#### 3.1.1 Despliegue de la aplicación con la estrategia Source-to-image
 
 Para ello usamos el comando oc new-app indicando la imagen constructora que vamos a usar y el repositorio donde se encuentra el código. Si no indicamos la imagen constructora, OpenShift examinará los ficheros del repositorio y escogerá una imagen constructora dependiendo del lenguaje de programación que haya detectado.
 
@@ -690,7 +690,7 @@ oc expose service app1
 
 Y acceder a la aplicación.
 
-**Construcción de la imagen indicando una versión de la imagen constructora**
+#### 3.1.2 Construcción de la imagen indicando una versión de la imagen constructora
 
 En el ejercicio anterior, al no indicar la imagen constructora, OpenShift detectó el lenguaje de programación de la aplicación guardada en el repositorio y nos ofreció una imagen constructora, en este caso una imagen PHP.
 
@@ -715,9 +715,9 @@ oc get bc
 Una vez finalizado, creamos la ruta de este despliegue y accedemos a la aplicación.
 
 
-### Construcción de imágenes con estrategia Docker + repositorio Git
+### 3.2 Construcción de imágenes con estrategia Docker + repositorio Git
 
-**Creación del BuildConfig con estrategia Docker**
+#### 3.2.1 Creación del BuildConfig con estrategia Docker
 
 Vamos a seguir trabajando con el repositorio https://github.com/josedom24/osv4_php al que vamos a añadir un fichero Dockerfile con el siguiente contenido:
 
@@ -785,7 +785,7 @@ Ya nos había ocurrido en un ejemplo anterior, vemos que se han creado dos recur
 
 Creamos el objeto Route y accedemos a la aplicación.
 
-**Otras operaciones**
+#### 3.2.2 Otras operaciones
 
 Si queremos crear la imagen y desplegarla, ejecutamos:
 
@@ -805,7 +805,7 @@ O si queremos también, desplegar la aplicación:
 oc new-app https://github.com/josedom24/osv4_php --name=app2-v4 --strategy=source
 ```
 
-### Definición del objeto BuildConfig
+### 3.3 Definición del objeto BuildConfig
 
 Como cualquier recurso de OpenShift podemos tener su definición en un fichero YAML, y crearlo a partir de este fichero.
 
@@ -892,7 +892,7 @@ Cuando finalice la construcción de la imagen, podríamos desplegarla ejecutando
 oc new-app imagen-app3 --name=app3
 ```
 
-**Definición de los objetos BuildConfig definidos en los ejercicios anteriores**
+#### 3.3.1 Definición de los objetos BuildConfig definidos en los ejercicios anteriores
 
 Recordamos que teníamos un BuildConfig app1 que utilizaba la estrategia Source-to-Image (S2I) y obtenía los ficheros de un repositorio Git, podemos ver su definición ejecutando:
 
@@ -963,7 +963,7 @@ spec:
     type: ImageChange
 ```
 
-### Actualización manual de un build
+### 3.4 Actualización manual de un build
 
 En este apartado vamos a aprender los comandos que nos permiten gestionar los procesos de construcción a partir de un objeto BuildConfig. Para ello vamos a crear un BuildConfig usando la estrategia Docker y los ficheros necesarios se encuentra en el repositorio https://github.com/josedom24/osv4_python.
 
@@ -992,7 +992,7 @@ oc new-app app4 --name=app4
 oc expose service app4
 ```
 
-**Primera modificación: Modificación de la aplicación**
+#### 3.4.1Primera modificación: Modificación de la aplicación
 
 ¿Qué pasa si mi equipo de desarrollo saca una nueva versión de la aplicación y queremos desplegar esta nueva versión?. Para ello vamos a modificar la aplicación y luego vamos a lanzar una nueva construcción:
 
@@ -1026,7 +1026,7 @@ Lanzamos manualmente una nueva construcción de la imagen:
 
 Si accedemos a la aplicación vemos la modificación.
 
-**Segunda modificación: Modificación del valor de la variable de entorno**
+#### 3.4.2 Segunda modificación: Modificación del valor de la variable de entorno
 
 ¿Qué pasa si modificamos el fichero Dockerfile, por ejemplo para cambiar el valor de la variable de entorno? De la misma forma, habrá que construir una nueva imagen, y desplegarla de nuevo.
 
@@ -1061,7 +1061,7 @@ Al terminar la construcción de la imagen, se ha actualizado el Deployment:
 
 Si accedemos a la aplicación vemos la modificación.
 
-**Otras operaciones**
+#### 3.4.3 Otras operaciones
 
 Podemos cancelar una construcción ejecutando la instrucción oc cancel-build:
 
@@ -1085,11 +1085,11 @@ No resources found in josedom24-dev namespace.
 oc get pod
 ```
 
-### Construcción de imágenes desde ficheros locales
+### 3.5 Construcción de imágenes desde ficheros locales
 
 A este tipo de construcción de imágenes se la llama Binary Build, y nos permite cargar código fuente directamente en un build en lugar de indicar un repositorio Git.
 
-**Ejemplo 1: Construcción de cambios locales del código fuente**
+#### 3.5.1 Ejemplo 1: Construcción de cambios locales del código fuente
 
 Vamos a crear una aplicación a partir de un repositorio de ejemplo de OpenShift que nos despliega una aplicación construida con Python Flask: https://github.com/devfile-samples/devfile-sample-python-basic.git.
 
@@ -1123,7 +1123,7 @@ oc get build
 
 Una vez terminada dicha construcción, accedemos de nuevo a la aplicación para asegurarnos que se ha modificado con el nuevo código. Una vez que probemos que los cambios son adecuados, podríamos guardarlos en el repositorio Git.
 
-**Ejemplo 2: Construcción de imagen usando código privado**
+#### 3.5.2 Ejemplo 2: Construcción de imagen usando código privado
 
 En este caso partimos de un código fuente que tenemos en local, no está en ningún repositorio Git.
 
@@ -1183,13 +1183,13 @@ oc expose service app6
 
 Finalmente, accedemos a la aplicación.
 
-### Construcción de imágenes con Dockerfile en línea
+### 3.6 Construcción de imágenes con Dockerfile en línea
 
 En este tipo de construcción vamos a tener el contenido del fichero Dockerfile dentro de la definición del objeto BuildConfig.
 
 Vamos a ver dos ejemplos:
 
-**Ejemplo 1: BuildConfig con un Dockerfile inline**
+#### 3.6.1 Ejemplo 1: BuildConfig con un Dockerfile inline
 
 Partimos de la definición de un BuildConfig que tenemos en el fichero bc-dockerfile1.yaml:
 
@@ -1243,7 +1243,7 @@ oc logs deploy/app7
 Hola, estás probando un dockerfile inline
 ```
 
-**Ejemplo 2: BuildConfig con un Dockerfile sustituido**
+#### 3.6.2 Ejemplo 2: BuildConfig con un Dockerfile sustituido
 
 En este caso partimos de un repositorio Git donde tenemos una aplicación y un Dockerfile para la creación de la imagen. Sin embargo, vamos a partir del código de ese repositorio pero vamos a sustituir el Dockerfile por uno que tenemos definido en el BuildConfig. Para ello partimos de la definición que tenemos en el fichero bc-dockerfile2.yaml:
 
@@ -1300,7 +1300,7 @@ oc expose service app8
 
 Y accedemos a la aplicación.
 
-### Actualización automática de un build
+### 3.7 Actualización automática de un build
 
 En primer lugar vamos a crear un objeto ImageStream que apuntará a una imagen constructora de PHP, que luego utilizaremos para explicar el trigger ImageChange.
 
@@ -1340,7 +1340,7 @@ Vemos que tenemos tres posibles disparadores:
 * ImageChange: Permite que se cree una nueva construcción de forma automática cuando está disponible una nueva versión de la imagen constructora.
 * Webhook: Nos permite disparar una nueva construcción de forma automática cuando ocurre un evento (por ejemplo un push) en un servicio externo (por ejemplo, un repositorio GitHub). Este servicio hace una llamada a una URL que nosotros le proporcionamos que produce que se inicie el proceso de construcción.
 
-**Ejemplo de actualización del build por ImageChange**
+#### 3.7.1 Ejemplo de actualización del build por ImageChange
 
 Seguimos trabajando con el BuildConfig que hemos creado y que ha disparado el primer build al tener configurado el trigger ConfigChange.
 
@@ -1376,7 +1376,7 @@ oc get build
 
 ## 4. Deployment us DeploymentConfig
 
-### Creación de un DeployConfig al crear una aplicación
+### 4.1 Creación de un DeployConfig al crear una aplicación
 
 Por ejemplo, si queremos crear un despliegue a partir de la imagen josedom24/test_web:v1 y queremos hacerlo con un DeploymentConfig, ejecutaremos:
 
@@ -1411,7 +1411,7 @@ Por último, creamos el recurso Route y comprobamos el acceso a la aplicación:
 oc expose service/test-web
 ```
 
-### Definición de un recurso DeploymentConfig
+### 4.2 Definición de un recurso DeploymentConfig
 
 Podemos ver la definición del recurso DeploymentConfig que hemos creado, ejecutando:
 
@@ -1475,7 +1475,7 @@ Podemos indicar algunos detalles importantes:
  - El primer disparador es de tipo ConfigChange, que provocará que se desencadene una nueva implementación si cambian algunos de los parámetros de configuración del DeploymentConfig.
  - El segundo disparador es de tipo ImageChange, que provocará que se desencadene una nueva implementación si cambia la imagen utilizada por el contenedor. El campo from especifica la fuente de la nueva imagen, en este caso un ImageStreamTag llamado test-web:v1. El campo automatic especifica si el cambio de imagen debe detectarse automáticamente o no.
 
-**Escalado de los Deployments**
+#### 4.2.1 Escalado de los Deployments**
 
 Como ocurría con los Deployments, los DeploymentConfig también se pueden escalar, aumentando o disminuyendo el número de Pods asociados. Al escalar un DeploymentConfig estamos escalando el ReplicationController asociado en ese momento:
 
@@ -1483,7 +1483,7 @@ Como ocurría con los Deployments, los DeploymentConfig también se pueden escal
 oc scale dc/test-web --replicas=4
 ```
 
-**Otras operaciones**
+#### 4.2.2 Otras operaciones
 
 Si queremos ver los logs generados en los Pods de un DeploymentConfig:
 
@@ -1503,7 +1503,7 @@ Si eliminamos el DeploymentConfig se eliminarán el ReplicationController asocia
 oc delete dc/test-web
 ```
 
-### Actualización de un DeploymentConfig (rollout)
+### 4.3 Actualización de un DeploymentConfig (rollout)
 
 Para comprobar los distintos motivos de actualización, vamos a lanzar un nuevo despliegue con un DeploymentConfig, para ello ejecutamos:
 
@@ -1523,7 +1523,7 @@ Creamos el objeto Route y accedemos a la página:
 oc expose service web1
 ```
 
-**Actualización manual del despliegue**
+#### 4.3.1 Actualización manual del despliegue
 
 La primera actualización la vamos a hacer de forma manual, y simplemente vamos a hacer que se actualice el despliegue a partir de la última revisión (no va a existir ningún cambio), para ello:
 
@@ -1549,7 +1549,7 @@ Si queremos detalles de un revisión en concreto, ejecutamos:
 oc rollout history dc/web1 --revision=2
 ``` 
 
-**Actualización por ConfigChange**
+#### 4.3.2 Actualización por ConfigChange
 
 En este apartado, vamos a realizar una actualización del despliegue, cambiando la configuración, por ejemplo:
 
@@ -1565,7 +1565,7 @@ oc get dc,rc,pod
 oc rollout history dc/web1
 ```
 
-**Actualización por ImageChange**
+#### 4.3.3 Actualización por ImageChange
 
 Por último, vamos a hacer un cambio en la aplicación, voy a generar una nueva imagen, y el despliegue se actualizará por el cambio de imagen. Para ello, cambiamos el fichero index.html del repositorio git. Una vez realizado el cambio guardo los cambios en el repositorio y genero de nuevo la imagen:
 
@@ -1588,7 +1588,7 @@ oc rollout history dc/web1
 
 Podemos acceder a la página para comprobar que se ha modificado.
 
-### Rollback de un DeploymentConfig
+### 4.4 Rollback de un DeploymentConfig
 
 Tenemos la posibilidad de volver al estado del despliegue que teníamos en una revisión anterior (Rollback). Para realizar este ejercicio vamos a desplegar una nueva aplicación a partir de una imagen que tenemos en Docker Hub. La imagen josedom24/test_web tiene tres versiones, identificadas por etiquetas.
 
@@ -1607,7 +1607,7 @@ Vamos a crear una nueva etiqueta prod que en primer lugar apuntará a la versió
 oc tag is_test_web:v1 is_test_web:prod
 ```
 
-**Creación del DeploymentConfig**
+#### 4.4.1 Creación del DeploymentConfig
 
 Creamos el DeploymentConfig con la siguiente instrucción:
 
@@ -1622,7 +1622,7 @@ oc get dc,rc,pod
 oc rollout history dc/test-web
 ```
 
-**Actualización del despliegue a la versión 2**
+#### 4.4.2 Actualización del despliegue a la versión 2
 
 Para producir la actualización vamos a cambiar la imagen, para ello vamos a referenciar el tag prod a la segunda versión:
 
@@ -1639,7 +1639,7 @@ oc get dc,rc,pod
 oc rollout history dc/test-web
 ```
 
-**Rollback del despliegue**
+#### 4.4.3 Rollback del despliegue
 
 Volvemos a realizar el cambio de imagen para desplegar la tercera versión:
 
@@ -1674,11 +1674,11 @@ oc rollout undo dc/test-web --to-revision=1
 oc rollout history dc/test-web
 ```
 
-### Estrategias de despliegues
+### 4.5 Estrategias de despliegues
 
 Vamos a estudiar dos tipos de estrategias:
 
-**Estrategia Rolling Update**
+#### 4.5.1 Estrategia Rolling Update
 
 En este tipo de estrategia utiliza una implementación gradual y en cascada para actualizar los Pods: se van creando los nuevos Pods, se comprueba que funcionan, y posteriormente se van eliminando los Pods antiguos. Es la estrategia por defecto. Veamos la configuración de esta estrategia, creando un DeploymentConfig a partir de la ImageStream is-example que tiene otras dos etiquetas apuntando a las distintas versiones:
 
@@ -1736,7 +1736,7 @@ oc tag is_example:v2 is_example:latest
 
 Finalmente podemos comprobar que tenemos desplegada la versión 2.
 
-**Estrategia Recreate**
+#### 4.5.2 Estrategia Recreate
 
 En algunas circunstancias, podemos necesitar eliminar todos los Pods antiguos y posteriormente crear los nuevos. Este tipo de estrategia se denomina Recreate.
 
@@ -1760,13 +1760,13 @@ oc tag -d is_example:latest
 oc tag is_example:v1 is_example:latest 
 ```
 
-### Estrategias de despliegues basadas en rutas
+### 4.6 Estrategias de despliegues basadas en rutas
 
 En este tipo de estrategia de despliegue configuramos el objeto Route para que enrute el tráfico a distintos Pods de distintos servicios.
 
 Con esta funcionalidad podemos implementar una estrategia de despliegue Blue/Green, podemos ofrecer dos versiones de la aplicación: la nueva (la "verde") se pone a prueba y se evalúa, mientras los usuarios siguen usando la versión actual (la "azul"). El cambio entre versiones se va haciendo gradualmente. Si hay algún problema con la nueva versión, es muy fácil volver a la antigua versión.
 
-**Modificación del objeto Route para servir otra aplicación**
+#### 4.6.1 Modificación del objeto Route para servir otra aplicación
 
 Este tipo de estrategia trabaja con dos objetos Deployment, pero se crea un sólo objeto Route que en un primer momento está conectado al Service del primer despliegue (versión actual de la aplicación). Vamos a crear dos despliegues y vamos a crear la ruta que apunta al primero de ellos:
 
@@ -1797,7 +1797,7 @@ Vamos a servir la primera versión para continuar con el ejemplo:
 oc patch route/app -p '{"spec":{"to":{"name":"app-blue"}}}'
 ```
 
-**Despliegue Blue/Green basado en rutas**
+#### 4.6.2 Despliegue Blue/Green basado en rutas
 
 Ahora podemos configurar la ruta, para que vaya enrutando a los dos Services correspondientes a los dos Deployment. A cada servicio se le asigna un peso y la proporción de peticiones a cada servicio es el peso asignado dividido por la suma de los pesos.
 
@@ -1846,7 +1846,7 @@ Los pesos también se pueden modificar de manera muy sencilla desde la consola w
 
 ## 5. Plantillas: empaquetando los objetos en OpenShift
 
-### Introducción a los Templates
+### 5.1 Introducción a los Templates
 
 También podemos obtener la lista de templates que se encuentran en el proyecto openshift, ejecutando la siguiente instrucción:
 
@@ -1890,7 +1890,7 @@ route.route.openshift.io/app-nodejs
 
 Esperamos a que la imagen se construya, y accedemos a la aplicación.
 
-### Descripción de un objeto Template
+### 5.2 Descripción de un objeto Template
 
 Vamos a crear un objeto Template desde su definición en un fichero YAML. En este ejemplo vamos a hacer un Template muy sencillo, que nos va a permitir crear un recurso Deployment usando la imagen bitnami/mysql y como veremos posteriormente hemos creado varios parámetros para permitir su configuración. Partimos del fichero mysql-plantilla.yaml con el siguiente contenido:
 
@@ -1994,7 +1994,7 @@ Y podemos ver que realmente la hemos creado, desde la línea de comandos:
 oc get templates
 ```
 
-### Crear objetos desde un Template
+### 5.3 Crear objetos desde un Template
 
 Si queremos ver los parámetros que podemos configurar en la plantilla, ejecutamos:
 
@@ -2067,7 +2067,7 @@ Una vez que sabemos como generar la definición de los objetos que están defini
  oc new-app mysql-plantilla -p NOMBRE_APP=new-mysql
 ```
 
- **Prueba de funcionamiento**
+#### 5.3.1 Prueba de funcionamiento
 
 Creamos un Deployment a partir del Template. Para ello, indicamos sólo dos parámetros:
 
@@ -2083,9 +2083,9 @@ oc exec -it deploy/mysql -- mysql -u usuario -pasdasd nueva_bd -h localhost
 mysql>
 ```
 
-### Creación de plantillas a partir de objetos existentes
+### 5.4 Creación de plantillas a partir de objetos existentes
 
-**Crear Templates a partir de Templates existentes**
+#### 5.4.1 Crear Templates a partir de Templates existentes
 
 Esta operación es muy sencilla, y simplemente consiste en copiar la definición YAML de un Template en un fichero y posteriormente hacer las modificaciones que necesitemos. Por ejemplo:
 
@@ -2099,7 +2099,7 @@ Otro ejemplo que nos permite hacer una copia de una plantilla del catálogo de a
 oc get template mariadb-ephemeral -n openshift -o yaml > otra-plantilla.yaml
 ```
 
-**Crear Templates a partir de objetos existentes**
+#### 5.4.2 Crear Templates a partir de objetos existentes
 
 Vamos a imaginar que hemos desplegado una aplicación PHP que tenemos guardada en un repositorio. Para ello hemos ejecutado el comando:
 
@@ -2119,9 +2119,9 @@ oc get -o yaml all > php-plantilla.yaml
 En el fichero php-plantilla.yaml tendremos la lista de las definiciones de los objetos, en el próximo apartado veremos cómo lo convertimos en la definición de un Template.
 
 
-### Uso de Helm en OpenShift desde la línea de comandos
+### 5.5 Uso de Helm en OpenShift desde la línea de comandos
 
-**Instalación de Helm chart**
+#### 5.5.1 Instalación de Helm chart
 
 Si accedemos a la consola web, en la parte superior derecha lel botón ? y la opción Command line tools, nos aparece la página web de descarga del Helm CLI: Download Helm.
 
@@ -2167,7 +2167,7 @@ Y para buscar información acerca de ese chart:
 helm show all openshift/redhat-jenkins
 ```
 
-**Instalación de un chart helm desde la línea de comandos**
+#### 5.5.2 Instalación de un chart helm desde la línea de comandos
 
 Podemos buscar más repositorios de charts explorando la página Artifact Hub, por ejemplo podemos añadir el repositorio de charts de Bitnami de la siguiente manera:
 
@@ -2235,7 +2235,7 @@ helm uninstall web
 
 ## 6. Almacenamiento en OpenShift v4
 
-### Ejemplo 1: Gestión de almacenamiento desde la consola web: phpsqlitecms 
+### 6.1 Ejemplo 1: Gestión de almacenamiento desde la consola web: phpsqlitecms 
 
 En este ejemplo, vamos a instalar un CMS PHP llamado phpSQLiteCMS que utiliza una base de datos SQLite. Para ello vamos a utilizar el código de la aplicación que se encuentra en el repositorio: https://github.com/ilosuna/phpsqlitecms.
 
@@ -2248,11 +2248,11 @@ oc expose service/phpsqlitecms
 
 Se han creado los recursos y podemos acceder a la aplicación.
 
-**Modificación de la aplicación**
+#### 6.1.1 Modificación de la aplicación
 
 A continuación, vamos a entrar en la zona de administración, en la URL /cms, y con el usuario y contraseña: admin - admin vamos a realizar un cambio (por ejemplo el nombre de la página) que se guardará en la base de datos SQLite.
 
-**Volúmenes persistentes**
+#### 6.1.2 Volúmenes persistentes
 
 Necesitamos un volumen para guardar los datos de la base de datos. Vamos a crear un volumen y lo vamos a montar en le directorio /opt/app-root/src/cms/data, que es donde se encuentra la base de datos. Para ello vamos a crear un objeto PersistentVolumenClaim que nos permitirá crear un PersistentVolumen que asociaremos al Deployment. Lo vamos a hacer desde la consola web, desde la vista Administrator, escogemos la opción Storage -> PersistentVolumenClaims y creamos un nuevo objeto.
 
@@ -2273,7 +2273,7 @@ oc cp data phpsqlitecms-687b8ff8cd-sqcdm:/opt/app-root/src/cms
 
 Y volvemos a comprobar si está funcionando la aplicación.
 
-**Estrategias de despliegue y almacenamiento**
+#### 6.1.3 Estrategias de despliegue y almacenamiento
 
 ¿Qué ocurrirá si volvemos actualizar el despliegue, creando un nuevo Pod? Lo vamos a realizar desde el entorno web seleccionando la acción Restart rollout. Se crea un nuevo Pod, pero no termina de estar en estado de ejecución.
 
@@ -2303,13 +2303,13 @@ oc get pod
 
 Como vemos se ha creado un nuevo Pod sin problemas.
 
-**Escalado y almacenamiento**
+#### 6.1.4 Escalado y almacenamiento
 
 Como hemos indicado el almacenamiento ofrecido por Red Hat OpenShift Dedicated Developer Sandbox no permite que varios Pods estén simultáneamente conectado a un mismo volumen, no proporciona almacenamiento compartido.
 
 De la misma manera, el nuevo Pod que se está creando no termina de crearse por que no se puede conectar al volumen, que ya está conectado al primer Pod. Por lo tanto concluimos, que con este tipo de almacenamiento, no podemos escalar los despliegues.
 
-### Ejemplo 2: Gestión de almacenamiento desde la línea de comandos: GuestBook
+### 6.2 Ejemplo 2: Gestión de almacenamiento desde la línea de comandos: GuestBook
 
 En esta tarea vamos a desplegar una aplicación web que requiere de dos servicios para su ejecución. La aplicación se llama GuestBook y necesita los siguientes servicios:
 
@@ -2329,7 +2329,7 @@ A continuación, creamos la ruta para acceder a GuestBook y comprobamos que func
 oc expose service/guestbook
 ```
 
-**Persistencia de la información**
+#### 6.2.1 Persistencia de la información
 
 En primer lugar vamos a crear un objeto PersistentVolumeClaim que nos va permitir solicitar la creación de un PersistentVolume, para ello usamos la definición del objeto que tenemos en el fichero pvc-redis.yaml:
 
@@ -2405,9 +2405,9 @@ oc delete pod/redis-7f59bf9479-mm76b
 Inmediatamente se creará un nuevo Pod, volvemos acceder y comprobar que la información no se ha perdido.
 
 
-### Ejemplo 3: Haciendo persistente la aplicación Wordpress
+### 6.3 Ejemplo 3: Haciendo persistente la aplicación Wordpress
 
-**Base de datos persistente**
+#### 6.3.1 Base de datos persistente
 
 Para obtener una base de datos persistente vamos a crear una aplicación de base de datos a partir de una plantilla que cree y configure un volumen. Por ejemplo, vamos a usar la plantilla mariadb-persistent:
 
@@ -2437,7 +2437,7 @@ Y que efectivamente está montado en un directorio de los Pods:
 oc describe dc/mariadb
 ```
 
-**Wordpress persistente**
+#### 6.3.2 Wordpress persistente
 
 Vamos a desplegar Wordpress y posteriormente, crearemos un nuevo volumen para guardar los datos del blog. Este volumen habrá que montarlo en el directorio /bitnami/wordpress.
 
@@ -2505,7 +2505,7 @@ oc rollout latest dc/wordpress
 
 Y volvemos acceder a la aplicación para comprobar que no hemos perdido la información.
 
-### Instantáneas de volúmenes
+### 6.4 Instantáneas de volúmenes
 
 Un recurso VolumeSnapshot representa una instantánea de un volumen en un sistema de almacenamiento. Las instantáneas de volumen nos proporciona una forma estandarizada de copiar el contenido de un volumen en un momento determinado sin crear un volumen completamente nuevo.
 
@@ -2554,13 +2554,13 @@ Y comprobamos que podemos acceder al fichero index.html, que en esta ocasión no
 
 ## 7. OpenShift Pipelines
 
-### Despliegue de una aplicación con OpenShift Pipeline
+### 7.1 Despliegue de una aplicación con OpenShift Pipeline
 
-**Tekton CLI**
+#### 7.1.1 Tekton CLI
 
 Vamos a usar una herramienta de línea de comandos llamada tkn, puedes seguir las siguientes instrucciones para su instalación.
 
-**Aplicación de ejemplo**
+#### 7.1.2 Aplicación de ejemplo
 
 Vamos a desplegar una aplicación muy sencilla de votaciones:
 
@@ -2568,7 +2568,7 @@ Vamos a desplegar una aplicación muy sencilla de votaciones:
 * backend: Aplicación escrita en Go que nos permite guardar las votaciones.
 En el directorio k8s del repositorio se encuentran los ficheros YAML que posibilitan el despliegue de la aplicación.
 
-**Instalación de Tasks**
+#### 7.1.3 Instalación de Tasks
 
 Las Tasks consisten en una serie de pasos que se ejecutan de forma secuencial. Las tareas se ejecutan mediante la creación de TaskRuns. Un TaskRun creará un Pod y cada paso se ejecuta en un contenedor independiente dentro del mismo Pod. Podemos definir entradas y salidas para interactuar con otras tareas en el pipeline.
 
@@ -2602,7 +2602,7 @@ oc get clustertasks
 tkn clustertasks ls
 ```
 
-**Creando el pipeline**
+#### 7.1.4 Creando el pipeline
 
 En este ejemplo, vamos a crear un pipeline que toma el código fuente de la aplicación de GitHub y luego lo construye y despliega en OpenShift.
 
@@ -2721,9 +2721,9 @@ tkn pipelines ls
 
 Si accedemos a la sección Pipeline de la consola web podemos ver la lista de Pipelines. Y si pulsamos sobre el Pipeline obtenemos información detallada del mismo.
 
-### Gestión de OpenShift Pipeline desde el terminal
+### 7.2 Gestión de OpenShift Pipeline desde el terminal
 
-**Disparar el pipeline**
+#### 7.2.1 Disparar el pipeline
 
 Como hemos indicado anteriormente, para que las distintas tareas del pipeline compartan información en el Workspaces, necesitamos asociar un volumen para que se guarde la información de manera compartida entre los distintos Pods que ejecutan las tareas. Para crear el volumen vamos a usar un objeto PersistentVolumeClaim que esta definido en el fichero 03_persistent_volume_claim.yaml y que tiene este contenido.
 
@@ -2781,7 +2781,7 @@ Si haces algún cambio en las aplicaciones y quieres volver a lanzar el desplieg
 tkn pipeline start build-and-deploy --last
 ``` 
 
-### Instalación de OpenShift Pipeline en CRC
+### 7.3 Instalación de OpenShift Pipeline en CRC
 
 Por defecto la instalación de OpenShift en local no tiene ningún Operador instalado. Los Operadores nos permiten instalar componentes internos de OpenShift que añaden funcionalidades extras a nuestro clúster.
 
@@ -2804,9 +2804,9 @@ Y puedes comprobar que ya aparecen la opciones de Pipelines.
 
 ## 8. OpenShift Serverless
 
-### Ejemplo de Serverless Serving
+### 8.1 Ejemplo de Serverless Serving
 
-**Knative CLI**
+#### 8.1.1 Knative CLI
 
 En estos ejemplos, vamos a usar la herramienta de línea de comando kn para manejar las aplicaciones Serverless. Para bajar esta herramienta, accedemos a la consola web de OpenShift y elegimos la opción Command line tools en el icono de ayuda (?).
 
@@ -2824,7 +2824,7 @@ Build Date:   2023-03-29 06:35:36
 ...
 ```
 
-**Desplegando una aplicación Serverless**
+#### 8.1.2 Desplegando una aplicación Serverless
 
 Tenemos varias formas de realizar el despliegue:
 
@@ -2868,7 +2868,7 @@ kn service create hello \
 
 Añadimos un nuevo despliegue desde una imagen. Indicamos la imagen, el nombre y nos aseguramos que en el tipo de despliegue (Resource type) está configurado como Serverless Deployment y creamos la variable de entorno. 
 
-**Comprobación de los recursos que se han creado**
+#### 8.1.3 Comprobación de los recursos que se han creado
 
 Si creamos la aplicación con cualquiera de las tres alternativas, podemos comprobar los recursos que se han creado:
 
@@ -2902,7 +2902,7 @@ revision.serving.knative.dev/hello-00001
 configuration.serving.knative.dev/hello
 ```
 
-**Autoescalado**
+#### 8.1.4 Autoescalado
 
 Podemos comprobar que la aplicación funciona:
 
@@ -2925,7 +2925,7 @@ oc get pod
 
 Puedes ejecutar la instrucción watch oc get pod y comprobar como se crean y eliminan los Pods si hay o no tráfico hacia la aplicación.
 
-**Distribución de tráfico hacía una aplicación Serverless**
+#### 8.1.5 Distribución de tráfico hacía una aplicación Serverless
 
 Esta característica la podemos usar para realizar distintas estrategias de despliegue, por ejemplo una estrategia Blue/Green. Para ello vamos a crear una nueva revisión, creando un nuevo objeto Revision modificando la configuración del servicio, por ejemplo cambiando la variable de entorno. Para ello podemos realizar la modificación como hemos visto con otros objetos de OpenShift:
 
@@ -2979,11 +2979,11 @@ La distribución entre distintas revisiones se puede realizar también con la he
 kn service update hello --traffic hello-00001=25 --traffic @latest=75
 ```
 
-### Ejemplo de Serverless Eventing
+### 8.2 Ejemplo de Serverless Eventing
 
 En este ejemplo vamos a crear una aplicación Serverless muy sencilla, que responde a un evento periódico que vamos a producir con un componente (Event sources) llamado PingSource.
 
-**Creación de la aplicación Serverless desde la consola web**
+#### 8.2.1 Creación de la aplicación Serverless desde la consola web
 
 Para crear la aplicación Serverless vamos a crear una nueva aplicación usando la imagen quay.io/openshift-knative/knative-eventing-sources-event-display:latest.
 
@@ -2991,7 +2991,7 @@ Recuerda que el parámetro Resource type debe estar definido con la opción Serv
 
 A continuación, vamos a crear el generador de eventos de tipo PingSource, para ello desde el catálogo de aplicaciones lo vamos a instalar y realizamos la configuración.
 
-**Creación de la aplicación Serverless con la herramienta kn**
+#### 8.2.2 Creación de la aplicación Serverless con la herramienta kn
 
 Para crear la aplicación Serverless ejecutamos:
 
@@ -3008,7 +3008,7 @@ Y para crear el generador de eventos de tipo PingSource, ejecutamos:
 --sink ksvc:event-display
 ``` 
 
-**Comprobación del funcionamiento**
+#### 8.2.3 Comprobación del funcionamiento
 
 Podemos ejecutar en un terminal la siguiente instrucción:
 
@@ -3033,13 +3033,13 @@ Data,
   {"message": "Hello world!"}
 ```
 
-### Ejemplo de Serverless Function
+### 8.3 Ejemplo de Serverless Function
 
 Serverless Functions nos permite crear e implementar funciones Serverless basadas en eventos como un servicio Knative. Una función Serverless, también conocida como función sin servidor, es un modelo de programación en la nube en el que nos centramos en escribir funciones que se ejecutan en una infraestructura que no tenemos que mantener, en nuestro caso OpenShift la ejecuta como aplicación Serverless.
 
 Podemos crear funciones Serverless en distintos lenguajes y framework: Qurakus, Go, Node.js, TypeScript, Python,...
 
-**Ejemplo de función Serverless escrita en Python**
+#### 8.3.1 Ejemplo de función Serverless escrita en Python
 
 Lo primero que vamos a hacer es crear una aplicación en nuestro entorno de desarrollo basada en python, para ello ejecutamos:
 
@@ -3099,9 +3099,9 @@ curl https://python-josedom24-dev.apps.sandbox-m3.1530.p1.openshiftapps.com
 {"mensaje":"Funcion Serverless"}
 ```
 
-### Instalación de OpenShift Serverless en CRC
+### 8.4 Instalación de OpenShift Serverless en CRC
 
-**Instalación del operador OpenShift Pipelines desde la consola web**
+#### 8.4.1 Instalación del operador OpenShift Pipelines desde la consola web
 
 En la vista Administrator, escogemos la opción Operators->OperatorHub y filtramos con el nombre del operador "OpenShift Serverless".
 
@@ -3114,11 +3114,11 @@ Nos aparece una ventana con información del operador y pulsamos sobre el botón
   
 Una vez instalado podemos comprobar que lo tenemos instalado en la opción Operators->Installed Operators.
 
-**Instalar Knative Serving**
+#### 8.4.2 Instalar Knative Serving
 
 Instalar Knative Serving le permite crear servicios y funciones Knative en su clúster. Para realizar la instalación pulsamos sobre la opción Knative Serving del operador OpenShift Serverless que hemos instalado y pulsamos sobre el botón Create KnativeServing. Y dejamos todas las opciones por defecto, pero en la vista YAML nos aseguramos de configurar el namespace con el valor knative-serving, que es el valor esperado y es el proyecto donde se crearan los recurso del operador.
 
-**Instalar Knative Eventing**
+#### 8.4.3 Instalar Knative Eventing
 
 De manera similar, vamos a instalar Knative Eventing, que nos permite el uso de la arquitectura basada en eventos. Para realizar la instalación pulsamos sobre la opción Knative Eventing del operador OpenShift Serverless que hemos instalado
 

@@ -1,6 +1,6 @@
 # Construcción de Microservicios con Istio Y Service Mesh
 
-### Instalación del operador de OpenShift ElasticSearch
+## 1. Instalación del operador de OpenShift ElasticSearch
 
 La instalación del operador de OpenShift Elasticsearch implica los siguientes pasos:
 
@@ -55,7 +55,7 @@ Message:               all available catalogsources are healthy
 ...output omitted...
 ```
 
-### Creación del plano de control de OpenShift Service Mesh
+## 2. Creación del plano de control de OpenShift Service Mesh
 
 Red Hat recomienda implementar el plano de control en un proyecto separado.
 
@@ -192,7 +192,7 @@ Implemente ServiceMeshMemberRoll.
 servicemeshmemberroll.maistra.io/default created
 ```
 
-**Adición o eliminación de un proyecto del plano de control**
+### 2.1 Adición o eliminación de un proyecto del plano de control
 
 Solo los proyectos enumerados en ServiceMeshMemberRoll son administrados por la malla de servicio. Para agregar o eliminar un proyecto del plano de control:
 
@@ -207,11 +207,11 @@ Edite el recurso ServiceMeshMemberRoll.
 Modifique YAML para agregar o eliminar miembros del proyecto y guardar los cambios.
 
 
-### Instalación de Red Hat OpenShift Service Mesh
+## 3. Instalación de Red Hat OpenShift Service Mesh
 
 OpenShift Service Mesh se instala mediante la consola web, o CLI, y un operador de Kubernetes. El proceso requiere primero la instalación de los operadores requeridos, luego la implementación del plano de control y, finalmente, la creación de una lista de miembros de la malla de servicio.
 
-**Instalación del operador de OpenShift Service Mesh**
+### 3.1 Instalación del operador de OpenShift Service Mesh
 
 OpenShift Service Mesh se basa en los siguientes operadores:
 
@@ -226,13 +226,13 @@ Proporciona observabilidad a la malla de servicio a través de una interfaz de u
 
 Puede encontrar todos los operadores necesarios y el operador de Red Hat OpenShift Service Mesh en la página **OperatorHub**.
 
-**Implementación del plano de control de OpenShift Service Mesh**
+### 3.2 Implementación del plano de control de OpenShift Service Mesh
 
 El plano de control gestiona la configuración y las políticas de la malla de servicio. La instalación de OpenShift Service Mesh Operator hace que el operador esté disponible en todos los espacios de nombres, por lo que puede instalar el plano de control en cualquier proyecto.
 
 Para implementar un plano de control en un proyecto con la interfaz de usuario web, primero vaya a la página Installed Operators (Operadores instalados), luego, a la página Istio Service Mesh Control Plane (Plano de control de malla de servicio de Istio) y, finalmente, revise y configure los parámetros de implementación.
 
-**Creación de una lista de miembros de la malla de servicio**
+### 3.3 Creación de una lista de miembros de la malla de servicio
 
 El recurso personalizado ServiceMeshMemberRoll define los proyectos que pertenecen a un plano de control.
 
@@ -240,7 +240,7 @@ Cualquier número de proyectos se puede agregar a ServiceMeshMemberRoll; sin emb
 
 Para crear o editar una lista de miembros de la malla de servicio, primero vaya al proyecto donde Red Hat OpenShift Service Mesh está instalado, luego, vaya a la página Istio Service Mesh Member Roll (Lista de miembros de la malla de servicio de Istio) y, finalmente, revise y configure los parámetros de instalación.
 
-### Visualización de rastros y tramos con la consola web de Jaeger
+## 4. Visualización de rastros y tramos con la consola web de Jaeger
 
 La consola web de Jaeger está instalada de forma predeterminada en Red Hat OpenShift Service Mesh y está estrechamente integrada con la consola web de OpenShift.
 
@@ -252,7 +252,7 @@ Use el mismo nombre de usuario y la misma contraseña que se usa para iniciar se
 
 En el panel izquierdo de la consola de Jaeger, en el menú Servicie (Servicio), seleccione su aplicación y haga clic en Find Traces (Buscar rastros) en la parte inferior del panel. Se muestra una lista de los rastros (traces) recopilados para la aplicación.
 
-### Inyección automática del sidecar de Envoy
+## 5. Inyección automática del sidecar de Envoy
 
 Para inyectar automáticamente el sidecar de Envoy en un servicio, debe especificar la notación sidecar.istio.io/inject con el valor establecido en "true" (verdadero) en el recurso Deployment (Implementación).
 
@@ -279,7 +279,7 @@ spec:
             - containerPort: 8080
 ```
 
-### Agregar el proyecto hello a la lista de miembros en el recurso ServiceMeshMemberRoll.
+## 6. Agregar el proyecto hello a la lista de miembros en el recurso ServiceMeshMemberRoll.
 
 ServiceMeshMemberRoll está disponible en el proyecto istio-system.
 
@@ -290,7 +290,7 @@ Use el script add-project-to-smmr.sh para agregar el proyecto hello a la lista d
 servicemeshmemberroll.maistra.io/default patched
 ```
 
-### Cree una puerta de enlace de entrada (ingress) para permitir el tráfico de entrada a la malla.
+## 7. Cree una puerta de enlace de entrada (ingress) para permitir el tráfico de entrada a la malla.
 
 Examine el archivo gateway.yaml, en el que se describe el tráfico permitido para entrar en la malla.
 
@@ -334,7 +334,7 @@ Use el comando oc create para crear la configuración de la puerta de enlace de 
 gateway.networking.istio.io/hello-gateway created
 ```
 
-### Cree un servicio virtual para redirigir el tráfico de entrada (ingress) a la aplicación Vert.x.
+## 8. Cree un servicio virtual para redirigir el tráfico de entrada (ingress) a la aplicación Vert.x.
 
 Examine el archivo virtual-service.yaml, que enruta el tráfico de entrada (ingress) con la aplicación Vert.X.
 
@@ -388,19 +388,19 @@ Use el comando oc create para crear un servicio virtual.
 virtualservice.networking.istio.io/hello-vs created
 ```
 
-**Exporte la URL de la puerta de enlace de entrada (ingress) a una variable de entorno llamada GATEWAY_URL.**
+### 8.1 Exporte la URL de la puerta de enlace de entrada (ingress) a una variable de entorno llamada GATEWAY_URL.
 
 ```
 [student@workstation traffic-deploy]$ GATEWAY_URL=$(sh get-ingress-gateway-url.sh)
 ```
 
-**Ejecute el comando curl en combinación con la variable GATEWAY_URL para confirmar el acceso a la aplicación desde el terminal.**
+### 8.2 Ejecute el comando curl en combinación con la variable GATEWAY_URL para confirmar el acceso a la aplicación desde el terminal.
 
 ```
 [student@workstation traffic-deploy]$ curl ${GATEWAY_URL}
 Hello World!
 ```
-**Visualice el tráfico de entrada (ingress) con Kiali**
+### 8.3 Visualice el tráfico de entrada (ingress) con Kiali
 
 Examine el script get-kiali-url.sh, que usa el comando oc para recopilar la URL de Kiali.
 
@@ -416,7 +416,7 @@ Abra la URL KIALI_URL en un navegador para acceder a Kiali.
 [student@workstation traffic-deploy]$ firefox ${KIALI_URL} &
 ```
 
-### Recupere la URL de la puerta de enlace de entrada (ingress) de Istio ejecutando el siguiente comando:
+## 9. Recupere la URL de la puerta de enlace de entrada (ingress) de Istio ejecutando el siguiente comando:
 
 ```
 [student@workstation ~]$ ISTIO_GW=$(oc get route istio-ingressgateway \
@@ -431,7 +431,7 @@ Abra un navegador web para comprobar que la aplicación funciona correctamente. 
 [student@workstation ~]$ firefox $ISTIO_GW/frontend &
 ```
 
-### Lanzamiento de canarios
+## 10. Lanzamiento de canarios
 
 Genere el lanzamiento canario. Implemente la versión 2 de la aplicación vertx-greet creando una nueva implementación. Una vez implementada la nueva versión, dirija el 20 % del tráfico a la nueva versión.
 
@@ -574,7 +574,7 @@ Total requests: 50
 * Errors: 0 (0.0%)
 ```
 
-### Duplicación en OpenShift Service Mesh
+## 11. Duplicación en OpenShift Service Mesh
 
 OpenShift Service Mesh usa los recursos DestinationRule para definir subconjuntos (generalmente versiones de servicio) y la entrada de destino en los recursos VirtualService para enrutar las solicitudes entre subconjuntos. OpenShift Service Mesh proporciona la duplicación de tráfico mediante el uso de los mismos recursos DestinationRule y la introducción de una entrada de duplicación en la ruta VirtualService:
 
@@ -608,7 +608,7 @@ El nombre del servicio que recibe el tráfico duplicado.
 
 El subconjunto de hosts que reciben el tráfico duplicado, como se define en DestinationRule.
 
-### Duplicación de un porcentaje del tráfico
+## 12. Duplicación de un porcentaje del tráfico
 
 Hay situaciones en las que no es necesario o deseable reflejar todo el tráfico en el nuevo servicio. Por ejemplo, cuando no se requiere mantener el estado más reciente del servicio o cuando reducir el tráfico entre servicios es más importante que probar todas las solicitudes. En esas situaciones, Istio y OpenShift Service Mesh permiten definir un porcentaje del tráfico duplicado:
 
@@ -631,7 +631,7 @@ spec:
     mirror_percent: 10
 ```
 
-### Lanzamiento de errores HTTP
+## 13. Lanzamiento de errores HTTP
 
 Por ejemplo, si desea descartar el 20 % de las conexiones a example-svc de otros servicios y devolver el error Bad Request (Mala solicitud), puede usar un código como este en el servicio virtual:
 
@@ -671,7 +671,7 @@ Porcentaje de las conexiones que se cancelarán.
 
 El código de estado HTTP que se devolverá al cancelar.
 
-### Creación de demoras en los servicios
+## 14. Creación de demoras en los servicios
 
 Por ejemplo, para agregar un retraso de 400 milisegundos al 10 % de las conexiones al servicio example-svc, puede usar lo siguiente:
 
@@ -711,7 +711,7 @@ Porcentaje de las conexiones que se retrasarán.
 
 Cantidad de tiempo para retrasar la conexión.
 
-### Configuración de tiempos de espera usando servicios virtuales
+## 15. Configuración de tiempos de espera usando servicios virtuales
 
 Los servicios virtuales le permiten configurar tiempos de espera para todo el tráfico enrutado a un servicio. Puede aplicar una configuración de tiempo de espera usando el campo timeout (tiempo de espera) en las reglas de ruta y asignando un valor medido en segundos.
 
@@ -734,7 +734,7 @@ spec:
 
 En el ejemplo anterior, Envoy espera hasta 1 segundo en cualquier llamada al servicio example-svc antes de devolver un error de tiempo de espera.
 
-### Configuración de reintentos usando servicios virtuales
+## 16. Configuración de reintentos usando servicios virtuales
 
 Puede configurar el patrón de reintento en el recurso del servicio virtual, por ejemplo:
 
@@ -773,7 +773,7 @@ Un valor de tiempo de espera para cada solicitud de reintento. Los valores váli
 
 Una política que especifica las condiciones que provocan que se vuelvan a intentar las solicitudes con errores. El valor es una lista de valores separados por comas.
 
-### Configuración de interruptores en OpenShift Service Mesh
+## 17. Configuración de interruptores en OpenShift Service Mesh
 
 Para habilitar un interruptor, incluya una entrada outlierDetection en el recurso DestinationRule relacionado con el servicio:
 

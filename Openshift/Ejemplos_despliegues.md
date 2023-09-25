@@ -1,13 +1,13 @@
 # Info del curso de Openshift V4 como Paas de OW. Ejemplos finales
 
-## Despliegue de aplicación Citas en OpenShift v4
+## 1. Despliegue de aplicación Citas en OpenShift v4
 
 La aplicación Citas nos muestra citas celebres de distintos autores en una página web. Esta formada por dos microservicios (citas-backend y citas-frontend) y un servicio de base de datos mysql. La aplicación funciona de la siguiente manera:
 
 * citas-backend: Es una API RESTful que devuelve información sobre citas famosas de distintos autores famosos. La versión 1 devuelve información de 6 citas que tiene incluidas en el programa. La versión 2 lee la información de las citas de una base de datos guardada en un servidor mysql. La aplicación está construida en python 3.9 y ofrece el servicio en el puerto TCP/10000.
 * citas-frontend: Es una aplicación python flask que crea una página web dinámica con una cita aleatoria que lee de citas-backend para ello conecta al servicio API RESTful usando el nombre y el puerto del servidor indicado en la variable de entorno CITAS_SERVIDOR.
   
-**Despliegue de citas-backend**
+### 1.1 Despliegue de citas-backend
 
 Para realizar el despliegue y posteriormente actualizar a una nueva versión, lo primero que vamos a hacer es crear un objeto ImageStream que apunte a las imágenes de la aplicación que vamos a desplegar, para ello:
 
@@ -55,7 +55,7 @@ Una vez comprobado que funciona, borramos la ruta:
 oc delete route/citas-backend
 ```
 
-**Despliegue de citas-frontend**
+### 1.2 Despliegue de citas-frontend
 
 Para desplegar el componente citas-frontend vamos a usar un Deployment Serverless. Vamos a realizar la configuración desde la consola web. Indicamos la imagen josedom24/citas-frontend y el icono de la aplicación.
 
@@ -67,7 +67,7 @@ Accedemos a la aplicación y comprobamos que funciona de forma correcta.
 
 Como hemos desplegado citas-frontend en un Deployment Serverless, pasados unos segundos sin acceder a la página veremos que escala a 0. El componente citas-backend sigue funcionando continuamente, y podemos tener otros componentes que acceden a él sin problemas.
 
-**Despliegue de la base de datos mysql**
+### 1.3 Despliegue de la base de datos mysql
 
 Para hacer el despliegue de la base de datos persistente vamos a usar la plantilla mysql-persistent. Veamos los parámetros que podemos configurar:
 
@@ -131,7 +131,7 @@ mysql> select * from quotes;
 ...
 ``` 
 
-**Actualización de la aplicación citas-backend**
+### 1.4 Actualización de la aplicación citas-backend
 
 Para terminar este ejercicio, vamos a actualizar citas-backend a la versión 2. Esta versión conecta con la base de datos mysql, para obtener las citas, por lo que tendremos que configurar las credenciales de acceso a la base de datos utilizando variables de entorno.
 
@@ -159,11 +159,11 @@ oc tag citas-backend:v2 citas-backend:prod
 Se produce de forma automática la actualización del despliegue y podemos acceder de nuevo a la página web y comprobamos que el servicio que está devolviendo la información de la citas es citas-backend versión 2 y además comprobamos que tenemos más citas (en la tabla hay 16 citas), la versión 1 tenía sólo 6 citas.
 
 
-## Despliegue de aplicación Parksmap en OpenShift v4
+## 2. Despliegue de aplicación Parksmap en OpenShift v4
 
 Este ejercicio esta basado y es una adaptación del ejemplo que se muestra en la guía OpenShift Starter Guides.
 
-**Despliegue de Parksmap**
+### 2.1 Despliegue de Parksmap
 
 Parksmap es la aplicación frontend que visualizará en un mapa las coordenados de los Parques Nacionales. Esta aplicación está escrita con el framework de Java Spring-boot y vamos a desplegarla usando la imagen quay.io/openshiftroadshow/parksmap:latest desde la consola web. Hemos escogido en la vista Developer, la opción +Add -> Conatiner Images, e indicamos la imagen y el icono de spring-boot.
 
@@ -177,7 +177,7 @@ Por último indicamos que vamos a desplegar la aplicación como un objeto Deploy
 
 Creamos el despliegue, y al cabo de unos segundos comprobamos los recursos creados en la topología. Accedemos a la URL del objeto Route y comprobamos que la aplicación está funcionando, aunque todavía no puede mostrar la localización de los puertos naturales.
 
-**Permisos**
+### 2.2 Permisos
 
 Todas las interacciones que hacemos sobre la API de OpenShift son autenticadas (¿Quién eres?) y autorizadas (¿Estás autorizado a hacer esta operación?).
 
@@ -203,7 +203,7 @@ Finalmente actualizamos el despliegue:
 oc rollout restart deployment/parksmap
 ``` 
 
-## Despliegue de aplicación Nationalparks en OpenShift v4 (2ª parte)
+## 3. Despliegue de aplicación Nationalparks en OpenShift v4 (2ª parte)
 
 En este apartado vamos a desplegar la aplicación escrita en Java Nationalparks, es el servicio backend, que expondrá varios endpoints que la aplicación Parksmap utilizará para obtener la información de los Parques Nacionales que visualizará en el mapa. Este servicio guarda la información de los Parques Nacionales en una base de datos MongoDB. Para hacer las peticiones a este servicio se utilizará una URL proporcionada por el objeto Route que crearemos a continuación.
 
@@ -226,7 +226,7 @@ curl http://nationalparks-josedom24-dev.apps.sandbox-m3.1530.p1.openshiftapps.co
 {"id":"nationalparks","displayName":"National Parks","center":{"latitude":"47.039304","longitude":"14.505178"},"zoom":4}
 ``` 
 
-**Conexión a la base de datos**
+### 3.1 Conexión a la base de datos
 
 Es el momento de desplegar una base de datos MongoDB para guardar la información de los Parques Naturales. Para realizar la instalación de MongoDB vamos a usar un Template que vamos a crear en nuestro proyecto:
 

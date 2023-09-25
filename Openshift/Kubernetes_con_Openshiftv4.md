@@ -43,7 +43,7 @@ oc get ns
 
 ## 3. CRC
 
-### Instalación en local
+### 3.1 Instalación en local
 
 Instalamos los paquetes kvm. Estos comandos vienen en la docu de instalar CRC en ubuntu. 
 
@@ -111,7 +111,7 @@ No es necesario instalar la herramienta oc, durante el proceso de instalación s
 eval $(crc oc-env)
 ```
 
-### Algunos detalles de la instalación
+### 3.2 Algunos detalles de la instalación
 
 Como hemos dicho, todos los ficheros relacionados con CRC se guardan en el directorio ~/.crc. La configuración de acceso al clúster, al igual que en kubernetes se guarda en el fichero ~/.kube/config. En nuestro caso:
 
@@ -145,7 +145,7 @@ users:
     token: sha256~qdvyZgGGYo32tdpGh1adh8eu_-NaP5ESgoJTmD2LA1Y
 ```
 
-### Algunos comando útiles de crc
+### 3.3 Algunos comando útiles de crc
 
 Cada vez que empecemos a utilizar CRC iniciamos la máquina virtual con:
 
@@ -179,7 +179,7 @@ To login as a regular user, run 'oc login -u developer -p developer https://api.
 To login as an admin, run 'oc login -u kubeadmin -p xxxxxxxxxxxxxxx https://api.crc.testing:6443'
 ```
 
-### Configuración de oc para CRC
+### 3.4 Configuración de oc para CRC
 
 Por defecto la instalación de OpenShift en local no tiene ningún Operador instalado. Los Operadores nos permiten instalar componentes internos de OpenShift que añaden funcionalidades extras a nuestro clúster.
 
@@ -187,7 +187,7 @@ Para poder conectarnos a un terminal desde la consola web y tener a nuestra disp
 
 Nos aparece una ventana con información del operador y pulsamos sobre el botón Install para comenzar la instalación, dejamos los valores por defecto, realizamos la instalación y comprobamos los operadores que hemos instalados en la opción Operators->Installed Operators.
 
-### Consola web CRC
+### 3.5 Consola web CRC
 
 Para acceder a la consola web, usamos la URL: https://console-openshift-console.apps-crc.testing y nos pide que hagamos login.
 
@@ -239,7 +239,7 @@ Nos podemos posicionar en uno de ellos, ejecutando:
 oc project developer
 ```
 
-### Proyectos y namespaces
+### 4.1 Proyectos y namespaces
 
 Como hemos comentado un objeto project es en realidad un namespace que puede guardar más información. De hecho, cada vez que creamos un proyecto se creará un namespace. Sin embargo el usuario developer no tiene permiso para acceder a los namespaces:
 
@@ -274,7 +274,7 @@ oc delete project developer2
 
 ## 5. OpenShift como distribución de Kubernetes
 
-### Trabajando con pods
+### 5.1 Trabajando con pods
 
 OpenShift configura por defecto una política de seguridad que sólo nos permite ejecutar contenedores no privilegiados, es decir, donde no se ejecuten procesos o acciones por el usuario con privilegio root (por ejemplo, no utilizan puertos no privilegiados, puertos menores a 1024, o no ejecuta operaciones con el usuario root).
 
@@ -413,7 +413,7 @@ Y por último, eliminamos el Pod mediante:
 oc delete pod pod-nginx
 ```
 
-### Pod multicontenedor
+### 5.2 Pod multicontenedor
 
 La razón principal por la que los Pods pueden tener múltiples contenedores es para admitir aplicaciones auxiliares que ayudan a una aplicación primaria. Ejemplos típicos de estas aplicaciones pueden ser las que envían o recogen datos externos (por ejemplo de un repositorio) y los servidores proxy. El ayudante y las aplicaciones primarias a menudo necesitan comunicarse entre sí. Normalmente, esto se realiza a través de un sistema de archivos compartido o mediante la interfaz loopback (localhost).
 
@@ -504,7 +504,7 @@ Podemos ejecutar un "port forward" para acceder al Pod en el puerto 8080 de loca
  oc port-forward pod/pod-multicontenedor 8080:8080
 ```
 
-### Tolerancia a fallos, escalabilidad, balanceo de carga: ReplicaSet
+### 5.3 Tolerancia a fallos, escalabilidad, balanceo de carga: ReplicaSet
 
 Para trabajar con los objetos ReplicaSet vamos a seguir trabajando con el usuario developer pero vamos a crear un nuevo proyecto:
 
@@ -540,7 +540,7 @@ Algunos de los parámetros definidos ya lo hemos estudiado en la definición del
 * selector: Seleccionamos los Pods que va a controlar el ReplicaSet por medio de las etiquetas. Es decir este ReplicaSet controla los Pods cuya etiqueta app es igual a nginx.
 * template: El recurso ReplicaSet contiene la definición de un Pod. Fíjate que el Pod que hemos definido en la sección template tiene indicado la etiqueta necesaria para que sea seleccionado por el ReplicaSet (app: nginx).
 
-**Creación del ReplicaSet**
+#### 5.3.1 Creación del ReplicaSet
 
 De forma declarativa creamos el ReplicaSet ejecutando:
 
@@ -562,7 +562,7 @@ Si queremos obtener información detallada del recurso ReplicaSet que hemos crea
 oc describe rs replicaset-nginx
 ```
 
-**Política de seguridad del Pod**
+#### 5.3.2 Política de seguridad del Pod
 
 Al crear el RepicaSet nos da un warning, de este estilo:
 
@@ -607,7 +607,7 @@ Esta instrucción agrega el restricción de seguridad llamada anyuid al ServiceA
 La restricción anyuid permite a los contenedores en el Pod ejecutarse con privilegios.
 Esta segunda opción la utilizaremos más adelante para poder ejecutar Pods privilegiados.
 
-**Tolerancia a fallos**
+#### 5.3.3 Tolerancia a fallos
 
 ¿Qué pasaría si borro uno de los Pods que se han creado? Inmediatamente se creará uno nuevo para que siempre estén ejecutándose los Pods deseados, en este caso 2:
 
@@ -616,7 +616,7 @@ oc delete pod <nombre_del_pod>
 oc get pod
 ```
 
-**Escalabilidad**
+#### 5.3.4 Escalabilidad
 
 Para escalar el número de Pods:
 
@@ -637,7 +637,7 @@ La escalabilidad puede ser para aumentar el número de Pods o para reducirla:
 oc scale rs replicaset-nginx --replicas=1
 ```
 
-**Eliminando el ReplicaSet**
+#### 5.3.5 Eliminando el ReplicaSet
 
 Por último, si borramos un ReplicaSet se borrarán todos los Pods asociados:
 
@@ -651,7 +651,7 @@ Otra forma de borrar el recurso, es utilizar el fichero YAML:
 oc delete -f replicaset.yaml
 ```
 
-### Desplegando aplicaciones: Deployment
+### 5.4 Desplegando aplicaciones: Deployment
 
 Para trabajar con los objetos Deployment vamos a seguir trabajando con el usuario developer pero vamos a crear un nuevo proyecto:
 
@@ -718,7 +718,7 @@ Para ver los recursos que hemos creado también podemos utilizar la instrucción
 oc get all
 ```
 
-**Política de seguridad del Pod**
+#### 5.4.1 Política de seguridad del Pod
 
 Al crear el Deployment nos da un warning igual que en el apartado anterior, al crear un ReplicaSet. De la misma manera que vimos en el apartado anterior, tenemos dos posibles soluciones:
 
@@ -732,7 +732,7 @@ Otorgar privilegios para ejecutar Pod privilegiados, para ello:
  oc adm policy add-scc-to-user anyuid -z default
 ```
 
-**Escalado de los Deployments**
+#### 5.4.2 Escalado de los Deployments
 
 Como ocurría con los ReplicaSets, los Deployments también se pueden escalar, aumentando o disminuyendo el número de Pods asociados. Al escalar un Deployment estamos escalando el ReplicaSet asociado en ese momento:
 
@@ -740,7 +740,7 @@ Como ocurría con los ReplicaSets, los Deployments también se pueden escalar, a
 oc scale deployment/deployment-nginx --replicas=4
 ```
 
-**Otras operaciones**
+#### 5.4.3 Otras operaciones
 
 Si queremos acceder a la aplicación, podemos utilizar la opción de port-forward sobre el despliegue (de nuevo recordamos que no es la forma adecuada para acceder a un servicio que se ejecuta en un Pod, pero de momento no tenemos otra). En este caso si tenemos asociados más de un Pod, la redirección de puertos se hará sobre un solo Pod (no habrá balanceo de carga):
 
@@ -760,7 +760,7 @@ Si queremos obtener información detallada del recurso Deployment que hemos crea
 oc describe deployment/deployment-nginx
 ```
 
-**Eliminando el Deployment**
+#### 5.4.4 Eliminando el Deployment
 
 Si eliminamos el Deployment se eliminarán el ReplicaSet asociado y los Pods que se estaban gestionando.
 
@@ -774,7 +774,7 @@ O también, usando el fichero:
 oc delete -f deployment.yaml
 ```
 
-### Ejecución de Pods privilegiados
+### 5.5 Ejecución de Pods privilegiados
 
 Como hemos indicado anteriormente, OpenShift configura por defecto una política de seguridad que sólo nos permite ejecutar contenedores no privilegiados, es decir, donde no se ejecuten procesos o acciones por el usuario con privilegio root (por ejemplo, no utilizan puertos no privilegiados, puertos menores a 1024, o no ejecuta operaciones con el usuario root).
 
@@ -843,7 +843,7 @@ Terminamos eliminando los recursos:
 oc delete deploy/nginx
 ```
 
-**Cómo podemos ejecutar este despliegue**
+#### 5.5.1 Cómo podemos ejecutar este despliegue
 
 La solución ya la hemos usado en los apartados anteriores. Tenemos que modificar los privilegios de ejecución de los Pods, para ello tenemos que añadir un privilegio al Service Account default.
 
@@ -876,7 +876,7 @@ Y comprobamos que funciona:
 oc port-forward deploy/nginx 8080:80
 ```
 
-### Actualización de un Deployment (rollout y rollback)
+### 5.6 Actualización de un Deployment (rollout y rollback)
 
 Una vez que hemos creado un Deployment a partir de una imagen de una versión determinada, tenemos los Pods ejecutando la versión indicada de la aplicación.
 
@@ -889,7 +889,7 @@ Una vez que hemos creado un Deployment a partir de una imagen de una versión de
    
 Veamos este proceso con más detalles estudiando un ejemplo de despliegue:
 
-**Desplegando la aplicación test_web**
+#### 5.6.1 Desplegando la aplicación test_web
 
 Con el usuario developer creamos un nuevo proyecto:
 
@@ -959,7 +959,7 @@ Y si accedemos al Pod con un port-forward comprobamos que la versión actual es 
 oc port-forward deployment/test-web 8080:8080
 ```
 
-**Actualizar un Deployment**
+#### 5.6.2 Actualizar un Deployment
 
 A continuación queremos desplegar una versión más reciente de la aplicación. Para ello tenemos que modificar el campo image de nuestro Deployment, esta operación la podemos hacer de dos formas:
 
@@ -1005,7 +1005,7 @@ REVISION  CHANGE-CAUSE
 
 Y volvemos a acceder a la aplicación con un port-forward para comprobar que realmente se ha desplegado la Versión 2.
 
-**Rollback del Deployment**
+#### 5.6.3 Rollback del Deployment
 
 A ese proceso de volver a una versión anterior de la aplicación es lo que llamamos rollback, o de forma concreta en Kubernetes y en OpenShift, "deshacer" un rollout. Veremos en este ejemplo un mecanismo sencillo de volver a versiones anteriores. Como hemos comentado, las actualizaciones de los Deployment van creando nuevos ReplicaSets, y se va guardando el historial de ReplicaSets anteriores. Deshacer un Rollout será tan sencillo como activar uno de los ReplicaSets antiguos.
 
@@ -1056,11 +1056,11 @@ Finalmente, podemos acceder de nuevo con un port-forward y comprobamos que hemos
 
 ## 6. Acceso a las aplicaciones
 
-### Trabajando con Services
+### 6.1 Trabajando con Services
 
 Suponemos que tenemos desplegado la aplicación test-web del capítulo anterior. Tenemos dos Pods ofreciendo el servidor web nginx, a los que queremos acceder desde el exterior y que se balancee la carga entre ellos.
 
-**Service ClusterIP**
+#### 6.1.1 Service ClusterIP
 
 Podríamos crear un recurso Service desde la línea de comandos:
 
@@ -1118,7 +1118,7 @@ Endpoints:         10.128.43.128:8080,10.128.51.189:8080
 * El puerto de los Pods a los que redirige el tráfico (TargetPort).
 * Y por último, podemos ver las IPs de los Pods que ha seleccionado y sobre los que balanceará la carga (Endpoints).
 
-**Services NodePort**
+#### 6.1.2 Services NodePort
 
 La definición de un Service de tipo NodePort sería exactamente igual, pero cambiando el parámetro type. Por ejemplo, lo tenemos definido en el fichero service-np.yaml:
 
@@ -1172,9 +1172,9 @@ Para eliminar el Service, ejecutamos:
 oc delete service/test-web-np
 ```
 
-### Accediendo a las aplicaciones: ingress y routes
+### 6.2 Accediendo a las aplicaciones: ingress y routes
 
-**Ingress**
+#### 6.2.1 Ingress
 
 Aunque podríamos utilizar la definición de un recurso ingress para el acceso a la aplicación usando una URL, por ejemplo con un fichero ingress.yaml:
 
@@ -1214,7 +1214,7 @@ oc apply -f ingress.yaml
 
 En OpenShift se recomienda el uso de recursos Routes, que nos asignan de forma automática una URL que podemos usar directamente (está dada de alta en un servidor DNS).
 
-**Route**
+#### 6.2.2 Route
 
 La manera más sencilla de crear un recurso Route en OpenShift es ejecutando:
 
@@ -1272,7 +1272,7 @@ El formato de la URL que se ha generado es:
 
 Podemos usar la URL para acceder a la aplicación.
 
-### Servicio DNS en OpenShift
+### 6.3 Servicio DNS en OpenShift
 
 Existe un componente en OpenShift que ofrece un servidor DNS interno para que los Pods puedan resolver diferentes nombres de recursos (Services, Pods, ...) a direcciones IP.
 
@@ -1280,7 +1280,7 @@ Cada vez que se crea un nuevo recurso Service se crea un registro de tipo A con 
 
 <nombre_servicio>.<nombre_namespace>.svc.cluster.local.
 
-**Comprobemos el servidor DNS**
+#### 6.3.1 Comprobemos el servidor DNS
 
 Partimos del punto anterior donde tenemos creado un Service:
 
@@ -1341,9 +1341,9 @@ Podemos concluir que, cuando necesitemos acceder desde alguna aplicación desple
 
 ## 7. Despliegues parametrizados
 
-### Variables de entorno
+### 7.1 Variables de entorno
 
-**Configuración de aplicaciones usando variables de entorno**
+#### 7.1.1 Configuración de aplicaciones usando variables de entorno
 
 Utilizaremos el fichero mysql-deployment-env.yaml:
 
@@ -1408,9 +1408,9 @@ Enter password:
 mysql>
 ```
 
-### ConfigMaps
+### 7.2 ConfigMaps
 
-**Configuración de aplicaciones usando ConfigMaps**
+#### 7.2.1 Configuración de aplicaciones usando ConfigMaps
 
 ConfigMap permite definir un diccionario (clave,valor) para guardar información que se puede utilizar para configurar una aplicación.
 
@@ -1511,7 +1511,7 @@ Enter password:
 mysql> show databases;
 ```
 
-### Secrets
+### 7.3 Secrets
 
 Los Secrets permiten guardar información sensible que será codificada o cifrada.
 
@@ -1570,9 +1570,9 @@ spec:
 
 Observamos como al indicar las variables de entorno (sección env) seguimos indicado el nombre (name) pero el valor se indica con un valor de un Secret (valueFrom: - secretKeyRef:), indicando el nombre del Secret (name) y la clave correspondiente (key).
 
-### Agrupación de aplicaciones
+### 7.4 Agrupación de aplicaciones
 
-**Agrupando despliegues en aplicaciones**
+#### 7.4.1 Agrupando despliegues en aplicaciones
 
 Cogemos uno de los despliegues que queremos agrupar, y elegimos la opción Edit application grouping.
 
@@ -1586,7 +1586,7 @@ La agrupación ha creado un nuevo Label en cada uno de los Deployments implicado
 
     app.kubernetes.io/part-of=wordpress
 
-**Conexión entre despliegues**
+#### 7.4.2 Conexión entre despliegues
 
 Podemos indicar que existe una relación entre despliegues de una aplicación, para ello sólo tenemos que arrastrar la flecha que sale de uno de los despliegues encima de otro despliegue
 
@@ -1596,7 +1596,7 @@ En este caso queremos señalar que los Pods del despliegue Wordpress acceden a l
 
 ## 8. Almacenamiento en OpenShift v4
 
-### Almacenamiento en CRC
+### 8.1 Almacenamiento en CRC
 
 Al usar la instalación local de OpenShift realizada con la herramienta CRC, tenemos todo el control del clúster, y con el usuario administrador tendremos acceso a todos los recursos relacionados con el almacenamiento.
 
@@ -1619,9 +1619,9 @@ Podemos observar que la configuración del recurso Storage Class tiene los sigui
 
 * Modo de asociación WaitForFirstConsumer, es decir no se crea el objeto PersistentVolumen (PV) hasta que no se utilice el volumen por el contenedor.
 
-### Volúmenes dentro de un pod
+### 8.2 Volúmenes dentro de un pod
 
-**Declaración de volúmenes en un pod**
+#### 8.2.1 Declaración de volúmenes en un pod
 
 Vamos a trabajar con la definición de un Pod que hemos definido en el fichero pod.yaml:
 
@@ -1706,7 +1706,7 @@ Finalmente podemos obtener información de los volúmenes que tenemos en un Pod 
 oc describe pod/my-pod
 ```
 
-### Aprovisionamiento dinámico de volúmenes
+### 8.3 Aprovisionamiento dinámico de volúmenes
 
 En este ejemplo vamos a desplegar un servidor web que va a servir una página html que tendrá almacenada en un volumen. La asignación del volumen se va a realizar de forma dinámica.
 
@@ -1716,7 +1716,7 @@ Como vimos en CRC tenemos configurado un recurso StorageClass, que de forma din�
 oc get storageclass
 ```
 
-**Solicitud del volumen**
+#### 8.3.1 Solicitud del volumen
 
 Vamos a realizar la solicitud de volumen, en este caso usaremos el fichero pvc.yaml:
 
@@ -1752,7 +1752,7 @@ Podemos ver las características del objeto que hemos creado, ejecutando:
 oc describe pvc my-pvc
 ```
 
-**Uso del volumen**
+#### 8.3.2 Uso del volumen
 
 Creamos el Deployment usando el fichero deployment.yaml:
 
@@ -1841,7 +1841,7 @@ oc expose service/nginx
 
 Podemos comprobar que la información de la aplicación no se pierde borrando el Deployment y volviéndolo a crear, comprobando que se sigue sirviendo el fichero index.html.
 
-**Eliminación del volumen**
+#### 8.3.3 Eliminación del volumen
 
 En este caso, los volúmenes que crea de forma dinámica el StorageClass tiene como política de reciclaje el valor de Delete. Esto significa que cuando eliminemos la solicitud, el objeto PersistentVolumeClaim, también se borrará el volumen, el objeto PersistentVolume.
 
@@ -1850,7 +1850,7 @@ oc delete deploy/nginx
 oc delete persistentvolumeclaim/my-pvc
 ```
 
-### Gestionando el almacenamiento desde la consola web
+### 8.4 Gestionando el almacenamiento desde la consola web
 
 Gestionando el almacenamiento desde la consola web como usuario sin privilegios
 Vamos a repetir el ejemplo visto en el punto anterior desde la consola web, con el usuario developer trabajando en el mismo proyecto developer.
@@ -1880,7 +1880,7 @@ Y podemos acceder a la aplicación usando los recursos Service y Route del apara
 
 ## 9. Otros recursos para manejar nuestras aplicaciones
 
-### StatefulSet
+### 9.1 StatefulSet
 
 A diferencia de un Deployment, un StatefulSet mantiene una identidad fija para cada uno de sus Pods.
 
@@ -1961,7 +1961,7 @@ spec:
 
 * Se seleccionan los Pods a los que se puede acceder por medio de la etiqueta declarada en el apartado selector.
 
-**Creación ordenada de Pods**
+#### 9.1.1 Creación ordenada de Pods
 
 Lo primero creamos el recurso Headless Service y vamos comprobar la creación ordenados de Pods, para ello en un terminal observamos la creación de Pods y en otro terminal creamos los Pods:
 
@@ -1970,7 +1970,7 @@ watch oc get pod
 oc apply -f statefulset.yaml
 ```
 
-**Comprobamos la identidad de red estable**
+#### 9.1.2 Comprobamos la identidad de red estable
 
 Vemos los hostname y los nombres DNS asociados:
 
@@ -1991,7 +1991,7 @@ Address 1: 10.128.8.181 web-0.nginx.josedom24-dev.svc.cluster.local
 Address 1: 10.128.43.7 web-1.nginx.josedom24-dev.svc.cluster.local
 ```
 
-**Eliminación de Pods**
+#### 9.1.3 Eliminación de Pods
 
 En un terminal observamos la creación de Pods y en otro terminal eliminamos los Pods:
 
@@ -2000,7 +2000,7 @@ watch oc get pod
 oc delete pod -l app=nginx
 ```
 
-**Comprobamos la identidad de red estable**
+#### 9.1.4 Comprobamos la identidad de red estable
 
 Volvemos a crear el recurso StatefulSet y comprobamos que los hostnames y los nombres DNS asociados no han cambiado (las IP pueden cambiar):
 
@@ -2015,7 +2015,7 @@ oc run -it --image busybox:1.28 dns-test --restart=Never --rm
 / # nslookup web-1.nginx
 ```
 
-**Escribiendo en los volúmenes persistentes**
+#### 9.1.5 Escribiendo en los volúmenes persistentes
 
 Comprobamos que se han creado volúmenes para los Pods:
 
@@ -2040,7 +2040,7 @@ oc apply -f statefulset.yaml
 for i in 0 1; do oc exec -i -t "web-$i" -- sh -c 'cat  /app/index.html'; done
 ```
 
-**Escalar el StatefulSet**
+#### 9.1.6 Escalar el StatefulSet
 
 Para escalar el despliegue:
 
@@ -2056,7 +2056,7 @@ oc get pod,pvc
 
 Si reducimos el número de Pods los volúmenes no se eliminan.
 
-**Gestión de StatefulSet desde la consola web**
+#### 9.1.7 Gestión de StatefulSet desde la consola web
 
 Para gestionar los objetos StatefulSet desde la consola web, escogemos la vista Admionistrator y la opción Workloads -> StatefulSets.
 
@@ -2064,7 +2064,7 @@ En esa pantalla además, tenemos la opción de crear un nuevo recurso con el bot
 
 También podemos gestionar los objetos PersistentVolumeClaim que se han creado para cada uno de los Pods, en la sección Storage - > PersistentVolumeClaim.
 
-**Borrado del escenario**
+#### 9.1.8 Borrado del escenario
 
 Para terminar eliminamos el statefulset y el service:
 
@@ -2079,7 +2079,7 @@ Para borrar los volúmenes:
 oc delete --all pvc
 ```
 
-### DaemonSet
+### 9.2 DaemonSet
 
 Un recurso DaemonSet garantiza que un Pod esté en ejecución en cada nodo del clúster OpenShift.
 
@@ -2118,13 +2118,13 @@ oc apply -f daemonset.yaml
 oc get pod -o wide
 ```
 
-**Gestión de DaemonSet desde la consola web**
+#### 9.2.1 Gestión de DaemonSet desde la consola web
 
 Para gestionar los objetos DaemonSets desde la consola web, escogemos la vista Administrator y la opción Workloads -> DaemonSets.
 
 En esa pantalla además, tenemos la opción de crear un nuevo recurso con el botón Create DaemonSet. Si escogemos un objeto determinado obtendremos la descripción del mismo.
 
-### Jobs y CronJobs
+### 9.3 Jobs y CronJobs
 
 Los recursos Jobs y CronJobs son recursos que permiten ejecutar tareas en un clúster.
 
@@ -2132,7 +2132,7 @@ Los recursos Jobs y CronJobs son recursos que permiten ejecutar tareas en un cl�
   
 * Por otro lado, un CronJob es un objeto que crea jobs de manera programada en un clúster de Kubernetes/OpenShift. Los CronJobs se utilizan para realizar tareas de manera repetitiva, según un horario establecido.
 
-**Jobs**
+#### 9.3.1 Jobs
 
 Vamos a ejecutar un recurso Job que simplemente crea un Pod para calcular el valor del numero pi con 200 decimales. La definición del recurso la tenemos guardada en el fichero job.yaml:
 
@@ -2168,7 +2168,7 @@ oc logs job/pi
 3.14159...
 ```
 
-**CronJobs**
+#### 9.3.2 CronJobs
 
 En este caso se ejecuta una tarea periódicamente. Vamos a ver un ejemplo, que tenemos definido en el fichero cronjob.yaml:
 
@@ -2202,7 +2202,7 @@ oc apply -f cronjob.yaml
 oc get all
 ```
 
-### Horizontal Pod AutoScaler
+### 9.4 Horizontal Pod AutoScaler
 
 El recurso Horizontal Pod AutoScaler nos permite variar el número de Pods desplegados mediante un Deployment en función de diferentes métricas: por ejemplo el uso de la CPU o la memoria.
 

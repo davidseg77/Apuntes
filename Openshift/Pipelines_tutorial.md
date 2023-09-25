@@ -4,7 +4,7 @@ OpenShift Pipelines es una solución de integración y entrega continua (CI/CD) 
 
 Utilizará la CLI de Tekton () a lo largo de este tutorial. Descargue la CLI de Tekton siguiendo las instrucciones disponibles en el repositorio de GitHub de la CLI.tkn
 
-### Para instalar Tekton en Linux:
+## 1. Para instalar Tekton en Linux:
 
 Para instalar la herramienta tkn de Tekton en Ubuntu, puedes seguir los siguientes pasos:
 
@@ -71,7 +71,7 @@ source ~/.bashrc
 
 Ahora, intenta nuevamente ejecutar el comando tkn version y debería funcionar correctamente.
 
-### ¿Qué es Tekton?
+## 2. ¿Qué es Tekton?
 
 Tekton Pipelines es una extensión de Kubernetes que se instala y ejecuta en su clúster de Kubernetes. Define un conjunto de recursos personalizados de Kubernetes que actúan como bloques de creación a partir de los cuales puede ensamblar canalizaciones de CI/CD. Una vez instalado, Tekton Pipelines está disponible a través de la CLI de Kubernetes (kubectl) y a través de llamadas API, solo como pods y otros recursos. Tekton es de código abierto y parte de la Fundación CD, un proyecto de la Fundación Linux.
 
@@ -96,11 +96,11 @@ TriggerTriggerBindingTriggerTemplateinterceptor
 * ClusterTriggerBinding: un ámbito de clúster TriggerBinding
 El uso junto con le permite cree fácilmente sistemas CI/CD completos donde la ejecución se defina completamente a través de los recursos de Kubernetes.tektoncd/triggerstektoncd/pipeline
 
-### Instalar el operador Openshift Pipelines
+## 3. Instalar el operador Openshift Pipelines
 
 A través de OperatorHub.
 
-### Deploy Sample Application
+## 4. Deploy Sample Application
 
 Create a project for the sample application that you will be using in this tutorial:
 
@@ -123,7 +123,7 @@ You can also deploy the same applications by applying the artifacts available in
 If you deploy the application directly, you should be able to see the deployment in the OpenShift Web Console by switching over to the Developer perspective of the OpenShift Web Console.
 
 
-### Install Tasks
+## 5. Install Tasks
 
 Tasks consist of a number of steps that are executed sequentially. Tasks are executed/run by creating TaskRuns. A TaskRun will schedule a Pod. Each step is executed in a separate container within the same pod. They can also have inputs and outputs in order to interact with other tasks in the pipeline.
 
@@ -172,7 +172,7 @@ We will be using buildah clusterTasks, which gets installed along with Operator.
 $ tkn clustertasks ls
 ```
 
-### Create Pipeline
+## 6. Create Pipeline
 
 A pipeline defines a number of tasks that should be executed and how they interact with each other via their inputs and outputs.
 
@@ -282,7 +282,7 @@ Check the list of pipelines you have created using the CLI:
 $ tkn pipeline ls
 ```
 
-### Trigger Pipeline
+## 7. Trigger Pipeline
 
 Now that the pipeline is created, you can trigger it to execute the tasks specified in the pipeline.
 
@@ -364,14 +364,14 @@ $ tkn pipeline start build-and-deploy --last
 
 Whenever there is any change to your repository we need to start pipeline explicity to see new changes to take effect
 
-### Triggers
+## 8. Triggers
 
 Triggers in conjuntion with pipelines enable us to hook our Pipelines to respond to external github events (push events, pull requests etc).
 
 Adding Triggers to our Application:
 Now let’s add a TriggerTemplate, TriggerBinding, and an EventListener to our project.
 
-**Trigger Template**
+### 8.1 Trigger Template
 
 A TriggerTemplate is a resource which have parameters that can be substituted anywhere within the resources of template.
 
@@ -427,7 +427,7 @@ Run following command to apply Triggertemplate.
 oc create -f https://raw.githubusercontent.com/openshift/pipelines-tutorial/master/03_triggers/02_template.yaml
 ```
 
-**Trigger Binding**
+### 8.2 Trigger Binding
 
 TriggerBindings is a map enable you to capture fields from an event and store them as parameters, and replace them in triggerTemplate whenever an event occurs.
 
@@ -456,7 +456,7 @@ Run following command to apply TriggerBinding.
 oc create -f https://raw.githubusercontent.com/openshift/pipelines-tutorial/master/03_triggers/01_binding.yaml
 ```
 
-**Trigger**
+### 8.3 Trigger
 
 Trigger combines TriggerTemplate, TriggerBindings and interceptors. They are used as ref inside the EventListener.
 
@@ -504,7 +504,7 @@ Run following command to apply Trigger.
 oc create -f https://raw.githubusercontent.com/openshift/pipelines-tutorial/master/03_triggers/03_trigger.yaml
 ```
 
-**Event Listener**
+### 8.4 Event Listener
 
 This component sets up a Service and listens for events. It also connects a TriggerTemplate to a TriggerBinding, into an addressable endpoint (the event sink)
 
@@ -533,7 +533,7 @@ Run below command to expose eventlistener service as a route
 oc expose svc el-vote-app
 ```
 
-### Configuring GitHub WebHooks
+## 9. Configuring GitHub WebHooks
 
 
 Now we need to configure webhook-url on backend and frontend source code repositories with the Route we exposed in the previously.
@@ -544,7 +544,7 @@ Run below command to get webhook-url
 echo "URL: $(oc  get route el-vote-app --template='http://{{.spec.host}}')"
 ```
 
-**Configure webhook manually**
+### 9.1 Configure webhook manually
 
 Open forked github repo (Go to Settings > Webhook) click on Add Webhook > Add
 
@@ -556,7 +556,7 @@ to payload URL > Select Content type as application/json > Add secret eg: 123456
 
 Now we should see a webhook configured on your forked source code repositories (on our GitHub Repo, go to Settings>Webhooks).
 
-### Trigger pipeline Run
+## 10. Trigger pipeline Run
 
 When we perform any push event on the backend the following should happen.
 
