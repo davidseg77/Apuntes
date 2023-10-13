@@ -6,7 +6,7 @@
 
 El control de versiones te permite grabar cambios en un fichero o grupo de ficheros permitiendo volver atrás a una versión específica si se requiere.
 
-**Paso 1 - Git Init**
+#### Paso 1 - Git Init
 
 Para almacenar un directorio bajo control de versiones, se necesita crear un repositorio. Con GIT se inicializa un repositorio en el primer nivel del directorio de un proyecto.
 
@@ -22,7 +22,7 @@ Posteriormente, iniciaremos un nuevo proyecto, y será necesario crear un nuevo 
 
 Después de inicializar un repositorio, se crea un nuevo subdirectorio oculto .git . Este subdirectorio contiene los metadatos que Git utiliza para almacenar su información. Explorar los contenidos del mismo para ver su contenidos.
 
-**Paso 2 - Git Status**
+#### Paso 2 - Git Status
 
 Cuando un directorio es parte de un repositorio, se le llama Working Directory. Un directorio de trabajo o working directory contiene la última versión descargada desde el repositorio junto con cualquier cambio que tenga que ser aprobado. Al estar trabajando en un proyecto, todos los cambios se realizan en el working directory.
 
@@ -40,7 +40,7 @@ A continuación, lanzamos el comando git status
   
 Todos los ficheros que creamos en nuestro espacio aparecen como “untracked“ o no considerados por Git mientras no le digamos lo contrario. Los detalles para resolver esto se cubren en el siguiente paso.
 
-**Paso 3 - Git Add**
+#### Paso 3 - Git Add
 
 Para guardar, o aprobar (commit) ficheros en nuestro repositorio GIT, primero se necesita añadirlos al stagging area (área de preparación). Git tiene tres áreas: un working directory, un staging area, y el propio repositorio en sí (directorio oculto .git). Los usuarios “mueven” (también se refiere a ello como “promueven/promote”) cambios desde el working directory al área de preparación o staging área, antes de aprobarlos/commit hacia el repositorio.
 
@@ -62,7 +62,7 @@ Importante: si hacemos cualquier otro cambio adicional a ese fichero posterior a
 
 Tal y como se describió en el paso 2, el comando git status te permite ver el estado tanto del working directory como de la staging area en cualquier momento.
 
-**Paso 4 - Git Commit**
+#### Paso 4 - Git Commit
 
 Una vez que el fichero ha sido añadido a la satging area, se necesita que sea aprobado (commited) hacia el repositorio. El comando git commit -m “commit message” mueve ficheros desde la staging area o área de preparación hacia el repositorio, y almacena fecha/hora, autor y un mensaje de aprobación que puede usarse para agregar información de contexto adicional a los cambios, como por ejemplo un identificador de error, o número identificador de bug.
 
@@ -88,7 +88,7 @@ Posteriormente, comprobamos que quedan ficheros que no han subido al repositorio
 
 A cada commit se le asigna un hash SHA-1 que posibilita identificarlo para usos futuros. Obsérvalo.
 
-**Paso 5 - Git Ignore**
+#### Paso 5 - Git Ignore
 
 A veces, hay ficheros o directorios que nunca querremos aprobar aunque estén en nuestro working directory , como por ejemplo configuración local de desarrollo. Para ignorar estos ficheros, usamos un fichero .gitignore lal raíz del repositorio.
 
@@ -110,7 +110,7 @@ Aún con el .gitignore, ¿existe alguna forma de agregar de forma forzada un tmp
 
 ### 1.2 Aprobando cambios
 
-**Paso 1 - Git Status**
+#### Paso 1 - Git Status
 
 Tal y como se ha discutido en la lección previa, git status nos permite visualizar los cambios en el working directory y en la staging area comparando con el repositorio.
 
@@ -128,7 +128,7 @@ Lanzamos
 git status
 ``` 
 
-**Paso 2 - Git Diff**
+#### Paso 2 - Git Diff
 
 El comando git diff permite comparar cambios en el working directory contra una versión previamente aprobada. Por defecto, el comando compara el working directory y el commit que llamamos HEAD (el más reciente).
 
@@ -177,7 +177,7 @@ git difftool
 
 Y veamos las posibilidades que tiene la herramienta.
 
-**Paso 3 - Git Add**
+#### Paso 3 - Git Add
 
 Anteriormente, vimos que podíamos aprobar un cambio mediante commit siempre y cuando previamente hubiésemos agregado el archivo al área de preparación (stage) mediante el comando git add .
 
@@ -203,7 +203,7 @@ Lo solucionamos con git add.
 
 Ahora repetimos el proceso con git mv y el comando git rm. ¿Qué sucede?
 
-**Paso 4 – Diferencias en estado preparado (Staged)**
+#### Paso 4 – Diferencias en estado preparado (Staged)
 
 Una vez que los cambios están en la staging area no se mostrarán en la salida de git diff
 
@@ -220,7 +220,7 @@ Para comparar cambios en el staging area contra el commit previo, debemos propor
 - Ahora lanzamos git add de ese fichero recién creado.
 - Si lanzamos ahora ambos comandos, ¿hay alguna diferencia?
 
-**Paso 5 - Git Log**
+#### Paso 5 - Git Log
 
 El comando git log permite visualizar el histórico del repositorio y el commit log .
 
@@ -248,7 +248,7 @@ git log --help
 
 Probar la salida del comando git log agregando las opciones descritas.
 
-**Paso 6 - Git Show**
+#### Paso 6 - Git Show
 
 Mientras que git log te dice el autor del commit y el mensaje, para visualizar los cambios efectuados en el commit se necesita usar el comando git show .
 
@@ -265,7 +265,7 @@ En esta lección aprenderemos cómo podemos compartir cambios en nuestro reposit
 
 Con Git como DVCS, tenemos nuestro repositorio local conteniendo todos los logs, ficheros y cambios realizados desde que se inicializó el repositorio. Para asegurar que todos están trabajando en la copia más reciente, es necesario compartir los cambios. Cuando compartimos estos cambios con otros repositorios, solo se sincronizarán las diferencias, por lo que es un procedimiento extremadamente rápido.
 
-**Paso 1 - Git Remote**
+#### Paso 1 - Git Remote
 
 Los repositorios remotos permiten compartir cambios desde o hacia nuestro repositorio. Las ubicaciones remotas son generalmente servidores locales, una máquina de un equipo de trabajo o bien un almacén de repositorios en la nube como GitLab o Github.
 
@@ -294,7 +294,7 @@ git fetch origin
 
 Si usamos git clone que será tratado en una lección futura, cuando se clona el repositorio, se agrega automáticamente como descriptor amigable que lo referencia, el nombre origin.
 
-**Paso 2 - Git Push**
+#### Paso 2 - Git Push
 
 Cuando estamos listos para compartir nuestros commits, es necesario hacer un push de ellos a un repositorio remoto usando git push. Un flujo de trabajo habitual de GIT sería llevar a cabo múltiples commits pequeños conforme vamos finalizando tareas, y hacerles un push a un repositorio remoto en hitos relevantes, como cuando finalizamos un bloque de trabajo, de manera que aseguramos la sincronización del código dentro de un equipo.
 
@@ -306,7 +306,7 @@ Haremos push de los commits de la rama master a la ubicación remota (origin).
 
 Para este ejercicio, vamos crearnos un usuario en gitlab. Crearemos un nuevo proyecto y nos vincularemos a él. Hacemos un pull. Posteriormente, crearemos un archivo (por ejemplo README2.md), y lo aprobaremos commit en nuestro master. Por último, lo subiremos al repositorio de Gitlab
 
-**Paso 3 - Git Pull**
+#### Paso 3 - Git Pull
 
 El comando git push permite subir los cambios a un repositorio remoto, mientras que git pull funciona de forma inversa. El comando git pull permite sincronizar cambios de un repositorio remoto en nuestra versión local.
 
@@ -333,7 +333,7 @@ git checkout -b nombre-rama
 
 Esto nos capacita para descargar una versión de repositorio, y luego versionar
 
-**Paso 4 - Git Log**
+#### Paso 4 - Git Log
 
 Tal y como se ha descrito en la lección previa, podemos usar git log para ver el histórico del repositorio. El comando git show permitirá ver los cambios realizados en cada commit.
 
@@ -352,7 +352,7 @@ Notas previas:
 
 hace falta crear un repositorio git con algunos commits previos
 
-**Paso 1 - Git Checkout**
+#### Paso 1 - Git Checkout
 
 Cuando trabajamos con Git, una lección habitual es deshacer cambios en nuestro working directory. El comando git checkout reemplazará todo en el working directory a la última versión aprobada (commited).
 
@@ -411,7 +411,7 @@ Pasos:
 - Lanzamos “ls -l”
 - Luego reemplazamos todo el contenido del directorio con lo que existiese en el HEAD de la rama master.
 
-**Paso 2 - Git Reset**
+#### Paso 2 - Git Reset
 
 Si estamos en la mitad de un commit y tenemos agregados ficheros a la staging area pero cambiamos de idea, entonces necesitaremos usar el comando git reset . El comando git reset eliminará a los ficheros de la staging area y los dejará en el working directory en estado untracked (no registrados).
 
@@ -427,7 +427,7 @@ Por último creamos un fichero más. Lo agregamos a staging.
 
 Lanzamos git reset para dejarlo en estado untracked.
 
-**Paso 3 - Git Reset Hard**
+#### Paso 3 - Git Reset Hard
 
 El comando git reset —hard combinará tanto el efecto de un git checkout como el de un git reset en un único comando. El resultado es que se eliminarán los ficheros de la staging area y del working directory de tal forma que volvemos a los mismos contenidos que estaban presentes en el último commit. Es un comando al que hay que tenerle respeto, porque podemos perder información si no estamos muy seguros de lo que estamos haciendo.
 
@@ -449,7 +449,7 @@ Pasos:
 - Hacemos un reset hard hacia HEAD-3 y lanzamos “ls -l” y “git status”.
 - Debemos estar en un estado sin staging y con la misma “foto” que en HEAD-3.
 
-**Paso 4 - Git Revert**
+#### Paso 4 - Git Revert
 
 Si ya has aprobado fichero pero te has dado cuenta de que has cometido un error, entonces el comando git revert te permite deshacer los cambios que se hayan producido en ese commit concreto. El comando creará un nuevo commit que tiene la afección invertida del commit al que hemos revertido (de modo que si volvemos a él, nos quedamos como estábamos).
 
@@ -472,7 +472,7 @@ Para ello:
 
 La motivación subyacente de crear nuevos commits es que reescribir la historia en GIT es algo desaconsejado. Si has subido (pushed) tus commits, entonces deberías crear nuevos commits para deshacer los cambios provocados, ya que otros usuarios podrían a ver hecho commits mientras tanto.
 
-**Paso 5 - Git Revert**
+#### Paso 5 - Git Revert
 
 Para hacer revert de múltiples commits de una tacada usamos el carácter ~ para significar “menos”. Por ejemplo, HEAD~2, son dos commits desde HEAD. Esto puede combinarse con los caracteres “…” que indican el rango entre dos commits.
 
@@ -503,7 +503,7 @@ En esta lección aprenderemos cómo podemos compartir los cambios en nuestro rep
 
 Simularemos un trabajo con otros desarrolladores y provocaremos un conflicto. Descubriremos qué opciones tenemos para resolverlo.
 
-**Paso 1 - Git Merge**
+#### Paso 1 - Git Merge
 
 El comando git fetch descarga los cambios en una rama separada que puede ser comprobada (checked out) y fusionada (merge). Durante un merge git intentará automáticamente combinar los commits.
 
@@ -543,7 +543,7 @@ Como ramas adicionales, funcionan de la misma manera que master y son ideales pa
 
 Cuando conmutamos o nos cambiamos de rama, Git cambia los contenidos del working directory. Esto es muy llamativo y sorprendente las primeras veces que lo usamos. Usando esta funcionalidad, no necesitamos cambiar configuraciones o parámetros para reflejar que estamos en ramas o ubicaciones diferentes.
 
-**Paso 1 - Git Branch**
+#### Paso 1 - Git Branch
 
 Las ramas se crean basándonos en otra rama, generalmente master. El comando:
 
@@ -573,7 +573,7 @@ Nos cambiamos a ella.
 
 El comando git checkout -b creará y hará checkout de la nueva rama creada; es decir, es lo mismo que un git branch + git checkout
 
-**Paso 2 – Listar las ramas**
+#### Paso 2 – Listar las ramas
 
 Para listar todas las ramas usamos el comando git branch.
 
@@ -583,7 +583,7 @@ El argumento adicional -a incluirá también las ramas remotas, y el parámetro 
 
 Usando la carpeta de proyecto del paso anterior, listar todas las ramas con su último mensaje de commit lanzando git branch
 
-**Paso 3 – Hacer fusión (merge) a master**
+#### Paso 3 – Hacer fusión (merge) a master
 
 Supongamos que se ha producido un commit a una nueva rama. Para fusionar (merge) dentro de la rama master, deberíamos primero hacer chekout a la rama objetivo (posicionarnos sobre ella), en este caso master, y estando en ella, lanzar un git merge para fusionar los cambios de la nueva rama sobre la rama master.
 
@@ -603,7 +603,7 @@ Ahora, me cambio a master y fusiono.
 
 Compruebo los cambios. Los apruebo.
 
-**Paso 4 - Push Branches**
+#### Paso 4 - Push Branches
 
 Tal y como hemos visto en pasos anteriores, si queremos subir el contenido de una rama a una ubicación remota, tenemos que usar el comando:
 
@@ -630,7 +630,7 @@ To https://gitlab.com/juancarlos.rubio/ej06-branches
 
 Trabajar en una carpeta de proyecto y subir cambios a gitlab. Comprobar que se suben correctamente.
 
-**Paso 5 – Limpiar ramas**
+#### Paso 5 – Limpiar ramas
 
 Limpiar ramas es importante para borrar ruido y confusión en un proyecto. Para borrar una rama se necesita usar el argumento -d. Por ejemplo:
 
@@ -648,7 +648,7 @@ Los errores de software o bugs han constituido un problema desde que existe el s
 
 En esta lección exploraremos diferentes formas para encontrar en cuál commit se introdujo un determinado problema.
 
-**Paso 1 - Git Diff entre dos Commits**
+#### Paso 1 - Git Diff entre dos Commits
 
 El comando git diff es el modo más simple de comparar qué ha cambiado entre commits. Mostrará las diferencias entre dos commits.
 
@@ -681,7 +681,7 @@ index 0000000..cac68b2
 
 - git diff —cached muestra las diferencias solo entre nuestro staged changes y el estado almacenado en él. Es decir, que si no he hecho “git add” a ciertos ficheros que haya modificado, no se analizan las diferencias entre ellos y el commit.
 
-**Paso 2 - Git Log**
+#### Paso 2 - Git Log
 
 El comando git log permite ver los mensajes de commit pero por defecto no muestra una salida de lo que en realidad se modificó. Afortunadamente, el comando es extremadamente flexible y permite opciones adicionales que proporcionan visualizaciones útiles de lo sucedido en el histórico del repositorio.
 
@@ -722,7 +722,7 @@ mostraría la salida de commits que incluyesen la cadena “Initial” en su men
 
 Tal y como hemos visto, el log puede ser ruidoso. Probemos las posibilidades del comando git log agregándole el parámetro -m y juguemos con las consultas para obtener resultados deseados.
 
-**Paso 3 - Git Blame**
+#### Paso 3 - Git Blame
 
 Disponer de una cultura de “culpa” (blame) no es deseable, aunque puede ser útil para conocer quién trabajó en ciertas secciones del fichero para ayudar a realizar mejoras en el futuro.
 
@@ -768,7 +768,7 @@ Este problema afecta particularmente a las ramas de larga vida, que se han conve
 
 Cuando esto sucede, queremos ser capaces de picotear commits individuales y simplemente hacer merge de ellos en la rama principal. Veremos cómo hacerlo.
 
-**Paso 1 – Resolviendo un conflicto de Cherry Picking**
+#### Paso 1 – Resolviendo un conflicto de Cherry Picking
 
 De igual forma que hacer un merging puede resultar en un conflicto, también puede producirse en un “entresacado” o “picoteo” (cherry-pick). Los conflictos se solucionan de la misma forma que fusionando una rama bien reparando manualmente los ficheros o bien seleccionando theirs o seleccionando ours a través del comando git checkout.
 
@@ -786,7 +786,7 @@ git cherry-pick new_branch~1
 
 Si este comando resultase en un conflicto de merge, se puede resolver usando el comando git checkout y seleccionando el commit elegido cuidadosamente (picked).
 
-**Paso 2 - Continuando un Cherry Picking después de un conflicto**
+#### Paso 2 - Continuando un Cherry Picking después de un conflicto
 
 Una vez que los conflictos se han resuelto, se puede continuar con el cherry-pick usando el comando
 
@@ -811,7 +811,7 @@ En esta lección cubriremos cómo reescribir la historia de Git usando el comand
 
 * Recomendación: Solo deberíamos hacer rebase de commits que no hayamos compartido con otras personas vía push. El proceso de rebasing de commits provoca que los hash_id commit-ids cambien, lo cual puede resultar en pérdida de commits futuros.
 
-**Paso 1 - Enmendando (amend) mensajes de commit**
+#### Paso 1 - Enmendando (amend) mensajes de commit
 
 Para reescribir el histórico de los repositorios, usamos el comando:
 
@@ -865,7 +865,7 @@ git commit --amend
 
 y efectuar los cambios.
 
-**Paso 2 - Aprobaciones condensadas (Squash Commits)**
+#### Paso 2 - Aprobaciones condensadas (Squash Commits)
 
 Hemos realizado una serie de commits en nuestro entorno. En el momento en el que se hicieron, quizás esos cambios tenían sentido como operaciones independientes, pero ahora necesitamos condensarlos en un único commit.
 
@@ -919,7 +919,7 @@ b7f8abc commit numero cuatro - fichero1.js
 1ca0ef6 Ahora tras el rebase commit numero uno
 ``` 
 
-**Paso 3 - Separar los commits (split)**
+#### Paso 3 - Separar los commits (split)
 
 Del mismo modo que cuando se condensan los commits, a veces es útil separar o desmenuzar los commits con el objeto de mantener la atención y posibilitar un cherry-pick o un revert más sencillo.
 
@@ -979,7 +979,7 @@ Solo deberíamos hacer un rebase en commits que no hayamos compartido con otras 
 
 Como muchos VCS, Git tiene la posibilidad de etiquetar puntos específicos del historial como importantes. Esta funcionalidad se usa típicamente para marcar versiones de lanzamiento (v1.0, por ejemplo). En esta sección, aprenderás como listar las etiquetas disponibles, como crear nuevas etiquetas cuales son los distintos tipos de etiquetas. En esta lección aprenderemos cómo trabajar con ellas.
 
-**Paso 1 - Listar Tus Etiquetas**
+#### Paso 1 - Listar Tus Etiquetas
 
 Listar las etiquetas disponibles en Git es sencillo. Simplemente escribe git tag:
 
@@ -1007,7 +1007,7 @@ v1.8.5.4
 v1.8.5.5
 ```
 
-**Paso 2 - Crear Etiquetas**
+#### Paso 2 - Crear Etiquetas
 
 Git utiliza dos tipos principales de etiquetas: ligeras y anotadas. Una etiqueta ligera es muy parecido a una rama que no cambia - simplemente es un puntero a un commit especifico.
 
@@ -1015,7 +1015,7 @@ Sin embargo, las etiquetas anotadas se guardan en la base de datos de Git como o
 
 Tienen un checksum; contienen el nombre del etiquetador, correo electrónico y fecha; tienen un mensaje asociado; y pueden ser firmadas y verificadas con GNU Privacy Guard (GPG). Normalmente se recomienda que crees etiquetas anotadas, de manera que tengas toda esta información; pero si quieres una etiqueta temporal o por alguna razón no estas interesado en esa información, entonces puedes usar las etiquetas ligeras.
 
-**Paso 3 - Etiquetas Anotadas**
+#### Paso 3 - Etiquetas Anotadas
 
 Crear una etiqueta anotada en Git es sencillo. La forma más fácil de hacer es especificar la opción -a cuando ejecutas el comando tag:
 
@@ -1045,7 +1045,7 @@ changed the version number
 
 El comando muestra la información del etiquetador, la fecha en la que el commit fue etiquetado y el mensaje de la etiquetar, antes de mostrar la información del commit.
 
-**Paso 4 - Etiquetas Ligeras**
+#### Paso 4 - Etiquetas Ligeras
 
 La otra forma de etiquetar un commit es mediante una etiqueta ligera. Una etiqueta ligera no es más que el checksum de un commit guardado en un archivo - no incluye más información. Para crear una etiqueta ligera, no pases las opciones -a, -s ni -m:
 
