@@ -89,7 +89,7 @@ OpenSSH (v6)               ALLOW       Anywhere (v6)
 Nginx HTTP (v6)            ALLOW       Anywhere (v6)
 ``` 
 
-## 3.3. Paso 3: comprobar su servidor web
+### 3.3. Paso 3: comprobar su servidor web
 
 Al final del proceso de instalación, Ubuntu 22.04 inicia Nginx. El servidor web ya debería estar funcionando.
 
@@ -800,7 +800,7 @@ Ahora será redirigido a una página que contiene información general sobre su 
 
 Con su aplicación GitHub OAuth creada, ahora está listo para reconfigurar Grafana para usar GitHub para la autenticación.
 
-## 5.6 Configurar Grafana como una aplicación GitHub OAuth
+### 5.6 Configurar Grafana como una aplicación GitHub OAuth
 
 Para completar la autenticación de GitHub para su configuración de Grafana, ahora deberá realizar algunos cambios en sus archivos de configuración de Grafana.
 
