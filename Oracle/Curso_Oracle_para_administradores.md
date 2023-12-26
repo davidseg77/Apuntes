@@ -267,6 +267,300 @@ Trás esto, para hacer una conexión remota, voy a sqlplus con su comando e inic
 system/contraseña@localhost:1521/orcl2
 ```
 
+## 11. Borrar la base de datos
+
+Para ello: 
+
+``` 
+dbca
+```
+
+Se nos abre el asistente. Damos en Suprimir base de datos. 
+
+
+## 12. Instalar SQL Developer
+
+En primer lugar, hemos de tener en cuenta que igualmente tenemos que instalar Java. Cuando hayamos descargado e instalado tanto Java como SQL Developer, accedemos al directorio de este y nos quedamos con el archivo **sqldeveloper.sh**. Lo ejecutamos:
+
+``` 
+./sqldeveloper.sh
+```
+
+## 13. Tablespaces
+
+Ya dentro de la interfáz gráfica, podemos ver los archivos asociados con los tablespaces de almacenamiento:
+
+``` 
+select * from dba_data_files;
+```
+
+O las propias tablespaces:
+
+``` 
+select * from dba_tablespaces;
+```
+
+O el archivo de los tablespaces de temp:
+
+``` 
+select * from dba_temp_files;
+```
+
+Para hacer estas consulta de manera más dinámica, y a veces más eficaz:
+
+``` 
+select * from v$datafile;
+select * from v$tempfile;
+```
+
+Para ver los espacios libres que tienen nuestras tablespaces:
+
+``` 
+select * from dba_free_space;
+```
+
+## 14. Cómo crear tablespaces
+
+Vamos al siguiente directorio:
+
+``` 
+cd /home/oracle/u01/app/oracle/oradata/ORCL
+```
+
+Ahora vamos al directorio de sqldeveloper y ejecutamos su archivo de inicio:
+
+``` 
+./sqldeveloper.sh
+```
+
+Hecho esto, vamos al directorio home y creamos una carpeta (datos). Y cambiamos el propietario de esa carpeta, para que sea el usuario de nuestra base de datos.
+
+```
+sudo chown oracle:dba datos
+```
+
+Y creamos la tablespace en la interfáz gráfica:
+
+``` 
+create tablespace RRHH datafile '/home/oracle/datos/RRHH.dbf' size 10M;
+```
+
+Y comprobamos tanto en el propio directorio como en Oracle:
+
+``` 
+select * from v$datafile;
+```
+
+## 15. Cómo crear un datafile
+
+Lo hacemos con el siguiente comando:
+
+``` 
+alter tablespace RRHH add datafile '/home/oracle/datos/tl.dbf' size 50M;
+```
+
+Y compruebo:
+
+``` 
+select * from dba_data_files;
+```
+
+
+## 16. Cómo cambiar datafile de estado
+
+Por ejemplo, queremos que nuestro tablespace pase a estar offline. Y dentro de offline podemos ponerlo en modo Normal, Temporary o Immediate, este último se utiliza cuando hay un error importante en nuestra base de datos y queremos cerrarla de inmediato y para ello hemos de cerrar nuestra tablespace.
+
+```
+alter tablespace "VENTAS" offline normal;
+```
+
+Y compruebo:
+
+``` 
+select * from dba_data_files;
+```
+
+Y para volver a ponerla en online:
+
+``` 
+alter tablespace "VENTAS" online;
+```
+
+O para poner la ts en modo solo lectura:
+
+``` 
+alter tablespace "VENTAS" read only;
+```
+
+## 17. Autoextender Datafile
+
+Lo podemos hacer con el siguiente comando:
+
+``` 
+create tablespace TBS3 datafile '/home/oracle/datos/TBS3.dbf' size 1M autoextend on next 1M maxsize 250M;
+```
+
+## 18. Cambiar nombre y mover datafile
+
+Para cambiar el nombre y mover el datafila:
+
+``` 
+alter database move datafile '/home/oracle/datos/t1.dbf' to '/home/oracle/datos/t1_prueba.dbf';
+```
+
+Incluso para moverlo a otro directorio nuevo:
+
+``` 
+alter database move datafile '/home/oracle/datos/t1.prueba.dbf' to '/home/oracle/datos/bk_datos/tbs4.dat';
+```
+
+Esto nos dará un error al no tener los permisos en esa carpeta. Lo resolvemos:
+
+``` 
+sudo chown oracle:dba bk_datos
+```
+
+## 19. Crear tablespaces temporales
+
+Para consultar las propiedades de la base de datos en base a TEMP.
+
+``` 
+select * from database_properties where property_name like '%TEMP%';
+```
+
+Para ver los temp files de nuestra base de datos:
+
+``` 
+select * from dba_temp_files;
+```
+
+Para crear el tablespace temporal:
+
+``` 
+create temporary tablespace TEMP1 tempfile '/home/oracle/datos/temp1.dbf' size 100M;
+```
+
+Y, ¿Cómo hago que esta tablespace temporal sea la de defecto de nuestra base de datos? Con la siguiente instrucción:
+
+``` 
+alter database default temporary tablespace TEMP1;
+```
+
+Por último, para hacer que pueda autoextenderse:
+
+``` 
+alter database tempfile '/home/oracle/datos/temp1.dbf' autoextend on next 10M;
+```
+
+## 20. Cómo borrar un tablespace
+
+``` 
+drop tablespace tbs3 including contents;
+```
+
+Pero es más eficaz si eliminamos igualmente los datafiles asociados:
+
+```
+drop tablespace rrhh including contents and datafiles;
+```
+
+## 21. Archivos de control
+
+Para ver donde se ubican:
+
+``` 
+select * from v$controlfile;
+```
+
+Aparecen dos, pues el archivo de control se duplica. Uno está activo y el otro es una copia.
+
+
+## 22. Crear tablespace Undo
+
+``` 
+create undo tablespace UNDOTBS datafile '/home/oracle/datos/undotbs2.dbf' size 100M autoextend on next 10M maxsize 250M;
+```
+
+Comprobamos:
+
+``` 
+select * from dba_tablespaces where tablespace_name like '%UNDO%';
+```
+
+Y: 
+
+``` 
+show parameter undo
+```
+
+Sin embargo, nuestra tablespace no aparece como la principal en el sistema. Cambiamos eso:
+
+``` 
+alter system set undo_tablespace = undotbs2 scope=both;
+```
+
+Si quisiera cambiar el tiempo de retención de archivos en este tablespace:
+
+``` 
+alter system set undo_retention = 1800;
+```
+
+Se añade el tiempo, obviamente, en segundos.
+
+Para garantizar esa retención:
+
+```
+alter tablespace undotbs2 retention guarantee;
+```
+
+## 23. Crear miembros grupos Redo Logs
+
+Vemos los redo logs:
+
+```
+select * from v$log;
+```
+
+Hay tres, y siempre uno va a estar en activo mientras los demas están inactivos. Para ver donde están los ficheros:
+
+``` 
+select * from v$logfile;
+```
+
+Para realizar el cambio en anillo y que pase a estar activo el siguiente redo log archivo:
+
+``` 
+alter system switch logfile;
+```
+
+Para añadir un miembro a un grupo de redo log:
+
+``` 
+alter database add logfile member '/home/oracle/datos/grupo1-log2.log' to group 1;
+```
+
+Y comprobamos:
+
+``` 
+select * from v$log;
+select * from v$logfile;
+```
+
+Mínimo debe haber dos miembros por cada grupo, y recomendable es tener tres.
+
+
+## 24. Crear grupos de redo logs
+
+``` 
+alter database add logfile group 5 ('/home/oracle/datos/grupo5-log1.log','/home/oracle/datos/grupo5-log2.log') size 200M;
+```
+
+
+
+
+
+
+
 
 
 
