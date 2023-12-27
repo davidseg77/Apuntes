@@ -555,9 +555,196 @@ Mínimo debe haber dos miembros por cada grupo, y recomendable es tener tres.
 alter database add logfile group 5 ('/home/oracle/datos/grupo5-log1.log','/home/oracle/datos/grupo5-log2.log') size 200M;
 ```
 
+## 25. Borrar miembros en redo logs
+
+En primer lugar, si quiero eliminar miembros del redo log activo, he de cambiar al siguiente redo log. 
+
+``` 
+alter system switch logfile;
+```
+
+Y ahora sí podemos eliminar este miembro:
+
+```
+alter database drop logfile member '/home/oracle/datos/grupo3-log2.log';
+```
+
+Comprobamos:
+
+``` 
+select * from v$log;
+select * from v$logfile;
+```
+
+## 26. Fast Recovery Area
+
+La fast recovery area es un componente crucial que permite recuperar datos en caso de fallos o errores en el sistema para su uso y mantenimiento.
+
+ Aquí veremos cómo configurar correctamente los valores de la fast recovery area en tu base de datos Oracle. 
+
+ Para verlo:
+
+ ``` 
+ show parameter recovery
+ ```
+
+ Vamos a la terminal y nos dirigimos al directorio de fast_recovery_area:
+
+ ``` 
+ cd u01/app/oracle/fast_recovery_area
+ ```
+
+ Volvemos al home con cd y accedemos a sqlplus insertando dicho comando. Accedemos con usuario y clave:
+
+ ``` 
+ sys/contraseña as sysdba
+ ```
+
+Ahora damos tamaño al archivo de recovery y especificamos su ámbito:
+
+``` 
+alter system set db_recovery_file_dest_size=50G scope=both sid='*';
+```
+
+Compruebo:
+
+``` 
+show parameter recovery
+```
+
+Y ahora establecemos nuestro database recovery file dest. Con esto decimos que los ficheros deben dejarse en la ruta que se indicará.
+
+``` 
+alter system set db_recovery_file_dest='/home/oracle/u01/app/oracle/fast_recovery_area' scope=both;
+```
+
+Para visionar como los datos se van logueando:
+
+``` 
+show parameter log_archive_des
+```
+
+Y para ver en que formato se van registrando los datos:
+
+``` 
+show parameter log_archive_format
+```
+
+Y ahora nos preguntamos, ¿Cómo sé si mi base de datos tiene activado mi sistema de archive log o no? Lo comprobamos:
+
+``` 
+select * from v$database;
+```
+
+En el campo log_mode nos dirá si archive log está activo o no.
 
 
+## 27. Configurar ubicación Archive logs
 
+``` 
+alter system set log_archive_dest_1='location=/home/oracle/datos/archivelogs';
+```
+
+Veamos otro ejemplo:
+
+``` 
+alter system set log_archive_dest_2='location=USE_DB_RECOVERY_FILE_DEST';
+```
+
+Para ver en que formato quiero que se vean mis archive logs:
+
+``` 
+alter system set log_archive_format = 'arch_%t_%s_%r.arc' scope=spfile;
+```
+
+## 28. Activación de Archive log.
+
+Accedemos a sqlplus e ingresamos con nuestro usuario sys:
+
+``` 
+sys/clave as sysdba
+```
+
+Apagamos la base de datos con shutdown immediate, e inicimos de nuevo con startup mount. Hacemos un listado de los archive log:
+
+```
+ARCHIVE LOG LIST
+```
+
+Modificamos la base de datos:
+
+``` 
+ALTER DATABASE ARCHIVELOG;
+```
+
+Y si vuelvo a hacer el listado de archive log nos dirá que está archivado. 
+
+## 29. Sesiones de usuario
+
+Para verlas:
+
+``` 
+select * from v$session;
+```
+
+O de un usuario en concreto:
+
+``` 
+select * from v$session where username='HR';
+```
+
+## 30. Creación de un usuario
+
+Puede hacerse con el siguiente comando:
+
+``` 
+create user david identified by acceso1;
+```
+
+Para corregir un error habitual con este proceso alteramos la sesión de este modo:
+
+```
+alter session set "_ORACLE_SCRIPT" = true;
+```
+
+Para ver los usuarios con una lista detallada:
+
+```
+select * from all_users;
+```
+
+En caso de no poder crear sesión con este usuario le damos ese permiso:
+
+``` 
+grant connect to david;
+grant resource to david;
+```
+
+Le he dado tambien permiso para poder crear objetos en la base de datos. Aún así, si yo creo, por ejemplo, una tabla, el sistema no me lo permitirá hacer hasta que no vuelva a salir y loguearme de nuevo para ahora sí tener los permisos de creación requeridos.
+
+## 31. Asignar tablespace a usuario
+
+Lo hacemos, por ejemplo, al crear el propio usuario:
+
+``` 
+create user usuario02 identified by acceso2
+default tablespace + nombre de ese tablespace;
+```
+
+Incluso podemos añadirle un tablespace temporal:
+
+``` 
+create user usuario02 identified by acceso2
+default tablespace + nombre de ese tablespace
+temporary tablespace temp;
+```
+
+Le damos los permisos oportunos para poder conectarse y crear objetos en la base de datos:
+
+``` 
+grant connect to usuario02;
+grant resource to usuario02;
+```
 
 
 
