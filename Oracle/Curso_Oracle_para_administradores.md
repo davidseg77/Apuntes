@@ -746,6 +746,197 @@ grant connect to usuario02;
 grant resource to usuario02;
 ```
 
+## 32. Modificaciones en un usuario
+
+Por ejemplo, para modificar la contraseña:
+
+``` 
+alter user david identified by + nueva contraseña;
+```
+
+Para cambiarlo de tablespace:
+
+``` 
+alter user david default tablespace + nombre de tablespace;
+```
+
+Veamos como podemos asignar quotas a los usuarios para limitar su espacio de uso en nuestra base.
+
+``` 
+alter user david quota 10m on + nombre de tablespace;
+```
+
+O con cuota ilimitada:
+
+``` 
+alter user david quota unlimited on + nombre de tablespace;
+```
+
+Para saber que espacio de cuota tiene el usuario en nuestra base de datos:
+
+``` 
+select * from dba_ts_quotas;
+```
+
+O:
+
+``` 
+select * from dba_ts_quotas where username = 'david';
+```
+
+## 33. Bloquear un usuario
+
+```
+alter user david account lock;
+```
+
+Y para desbloquear igual pero finalizando con **unlock**.
+
+Si quiero que la contraseña de un usuario expire, lo hacemos del siguiente modo:
+
+``` 
+alter user david password expire;
+```
+
+Ese usuario, cuando vuelva a conectarse, habrá de insertar una nueva contraseña.
+
+## 34. Borrar un usuario
+
+```
+drop user david;
+```
+
+Para eliminar un usuario junto con sus objetos:
+
+``` 
+drop user david cascade;
+```
+
+## 35. Asignar privilegios a un usuario
+
+* Permisos de conexión
+
+``` 
+grant connect to david;
+```
+
+* Permisos de creación de tabla
+
+``` 
+grant create table to david;
+```
+
+* Permisos de creación de sinónimos
+  
+``` 
+grant create synonym to david;
+```
+
+* Permiso para actuar sobre cualquier tabla
+
+``` 
+grant create any table to david;
+```
+
+## 36. Heredar y quitar privilegios a un usuario
+
+En primer lugar, damos permiso de crear procedimiento:
+
+```
+grant create procedure to david with admin option;
+```
+
+Y ahora sí, este usuario puede conceder privilegios a otros:
+
+``` 
+grant create procedure to usuario02;
+```
+
+Para quitar privilegios:
+
+```
+revoke create procedure from david;
+```
+
+O:
+
+``` 
+revoke create table from david;
+```
+
+## 37. Privilegios de objetos
+
+Si desde el usuario david quiero que usuario02 pueda hacer consultas y actualizar datos en una tabla:
+
+```
+grant select, update on productos to usuario02;
+```
+
+O para que pueda hacer cualquier cosa con mi tabla:
+
+```
+grant all on productos to usuario02;
+```
+
+O para una columna en concreto:
+
+``` 
+grant update (apellido) on alumnos to usuario02;
+```
+
+## 38. Vistas de privilegios
+
+Para ver los privilegios de sistema:
+
+``` 
+select * from dba_sys_privs;
+```
+
+O en base a un usuario concreto:
+
+```
+select * from dba_sys_privs where grantee = 'david';
+```
+
+Para ver los privilegios que tenemos sobre las tablas de nuestra base de datos:
+
+```
+select * from dba_tab_privs;
+```
+
+O por un usuario en concreto:
+
+``` 
+select table_name, privilege, grantable, grantor
+from dba_tab_privs where grantee='david';
+```
+
+Para ver los privilegios sobre columnas:
+
+```
+select * from dba_col_privs;
+```
+
+O por un usuario en concreto:
+
+```
+select table_name, privilege, grantable, grantor, column_name
+from dba_col_privs where grantee='david';
+```
+
+Para ver los privilegios que el sistema asigna a los diferentes usuarios para ocasiones especiales:
+
+``` 
+select * from user_tab_privs_recd;
+```
+
+Y para ver los privilegios que los usuarios realizan dentro del sistema:
+
+```
+select * from user_tab_privs_made;
+```
+
+
 
 
 
