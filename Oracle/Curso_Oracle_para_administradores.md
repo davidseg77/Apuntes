@@ -937,6 +937,193 @@ select * from user_tab_privs_made;
 ```
 
 
+## 39. Creación de roles
+
+```
+create role desarrollo;
+```
+
+Para ver los roles de la base de datos:
+
+```
+select * from dba_roles;
+```
+
+Para dar permisos a un rol:
+
+```
+grant select any table to desarrollo;
+```
+
+Para ver los privilegios de sistema de un rol:
+
+```
+select * from dba_sys_privs where grantee = 'DESARROLLO';
+```
+
+Para dar permisos a un rol sobre una tabla:
+
+```
+grant select on usuario02.productos to desarrollo;
+```
+
+Para ver los privilegios de un rol sobre las tablas de la base de datos:
+
+``` 
+select * from dba_tab_privs where grantee = 'DESARROLLO';
+```
+
+Para quitar permisos a un rol:
+
+```
+revoke create table from desarrollo;
+```
+
+## 40. Asignación de roles a un usuario
+
+``` 
+grant desarrollo to david;
+```
+
+Para ver los roles activos:
+
+``` 
+select * from session_roles;
+```
+
+Para ver los privilegios de rol de usuario:
+
+``` 
+select * from user_role_privs;
+```
+
+Para ver los privilegios de rol del sistema en base a un rol concreto:
+
+```
+select * from dba_role_privs where granted_role='DESARROLLO';
+```
+
+Para ver los privilegios de un rol sobre las tablas:
+
+```
+select * from role_tab_privs;
+```
+
+Para ver los privilegios de un rol en el sistema:
+
+``` 
+select * from role_sys_privs;
+```
+
+## 41. Tipos de perfiles
+
+Para ver los perfiles por defecto:
+
+``` 
+select * from dba_profiles where profile ='DEFAULT';
+```
+
+Para ver los perfiles por defecto filtrando por el kernel:
+
+``` 
+select * from dba_profiles where profile ='DEFAULT' and resource_type = 'KERNEL';
+```
+
+Para ver los perfiles por defecto filtrando por las claves:
+
+``` 
+select * from dba_profiles where profile ='DEFAULT' and resource_type = 'PASSWORD';
+```
+
+Para ver si los recursos están activados el resource_limit debe estar en true. Para comprobarlo:
+
+```
+select * from v$system_parameter where name = 'resource_limit';
+```
+
+Si quisiera ponerlo en false y desactivarlo:
+
+``` 
+alter system set resource_limit = FALSE;
+```
+
+## 42. Creación y configuración de perfiles
+
+A modo de ejemplo:
+
+```
+create profile desarrollo limit 
+sessions_per_user 1
+connect_time (aquí ponemos número de minutos, default o unlimited)
+idle_time 2; (Si el usuario lleva dos minutos inactivos se le desloguea) 
+```
+
+Para alterar un perfil y darle un tiempo de expiración a la contraseña:
+
+``` 
+alter profile desarrollo limit password_life_time 30;
+```
+
+## 43. Asignar perfiles a usuarios
+
+``` 
+alter user david profile desarrollo;
+```
+
+## 44. Password de usuarios en perfiles y borrar perfiles
+
+Veamos como podemos configurar los parametros de control de password de usuarios y como borrar un perifl de la base.
+
+Para indicar el máximo de intentos de insertar la contraseña:
+
+``` 
+alter profile desarrollo limit FAILED_LOGIN_ATTEMPTS 3;
+```
+
+Si el usuario inserta la contraseña de manera errónea tres veces, su cuenta será bloqueada y se comunicará al administrador este hecho. 
+
+Para borrar un perfil:
+
+```
+drop profile desarrollo;
+```
+
+Si tuviera ya usuarios vinculados a ese perfil:
+
+```
+drop profile desarrollo cascade;
+```
+
+## 45. Backup - Recovery automático
+
+Vamos a analizar los directorios. Si voy a la ruta u01/app/oracle, veo que hay un directorio llamado **diag**. Vamos a él, y dentro tenemos otro directorio. **rdbms**. Accedemos ahí y dentro a **orcl**. Dentro de este directorio a otro llamado de la misma manera, **orcl**. 
+
+Ya dentro de esta carpeta, pasamos a **trace**. Dentro de esta carpeta aparecen un montón de archivos, pero nos interesa uno en concreto:
+
+```
+ls al*
+``` 
+
+Y aparece un archivo llamado **alert_orcl.log**. Y analizamos los últimos cambios producidos en este archivo:
+
+```
+tail -f alert_orcl.log
+```
+
+Si hubiera un error, por ejemplo haber hecho un shutdown abort y haber dañado cualquier archivo o proceso, al iniciar de nuevo la base de datos con startup nos dirá que hay ciertos problemas.
+
+Para resolver esto y volver al punto anterior al error, añadimos lo siguiente:
+
+```
+startup pfile=/home/oracle/datos/init2.ora
+```
+
+Y el sistema se iniciara con un recovery automático al punto de partida idóneo.
+
+
+
+
+
 
 
 
