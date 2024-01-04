@@ -462,6 +462,556 @@ En el caso de querer desintalar Nginx trás haber detenido el servicio, creamos 
 
 Tan solo habría que lanzar el tasks-completo.yaml. Si yo, por ejemplo, hago cambios de forma manual en el index.html, tendré que realizar el redespliegue del yaml para que esa info pase a todos los nodos de la web.
 
+## 10. Uso de Variables en instalación de MariaDB
+
+Dentro de este directorio tenemos el ansible.cfg:
+
+```
+[defaults]
+inventory = ./inventory-dns
+timeout=60
+[privilege_escalation]
+become=True
+become_method=sudo
+become_user=root
+become_ask_pass=True
+```
+
+Apunta al inventory-dns. Lo vemos:
+
+```
+[ubuntu]
+u1
+u2
+u3
+[webservers]
+u1
+u2
+[databases]
+u3
+```
+
+Vamos a instalar MariaDB dentro de nuestro Ubuntu 22.04. En primer lugar, creo el archivo con las variables a utilizar (vars.yaml):
+
+```
+mariadb_socket: /run/mysqld/mysqld.sock
+mysql_root_password: test
+database_name: test
+database_user: test
+database_password: test
+mysql:
+  privileges: "ALL"
+```
+
+Estos valores pueden codificarse mediante Ansible Vault, algo que se verá en siguientes apartados. 
+
+
+
+A posteriori, creo el archivo tasks.yaml:
+
+``` 
+---
+- name: Install Databases
+  hosts: databases
+  vars:
+    - repo_software_packages:
+        - software-properties-common
+        - dirmngr
+        - apt-transport-https
+    - key_url: "https://mariadb.org/mariadb_release_signing_key.asc"
+    - repo_deb: "deb [arch=amd64] https://dlm.mariadb.com/repo/mariadb-server/10.9/repo/ubuntu"
+    - repo_deb_debug: "deb [arch=amd64,arm64] https://dlm.mariadb.com/repo/mariadb-server/10.9/repo/ubuntu"
+    - repo_deb_max_scale: "deb [arch=amd64,arm64] https://dlm.mariadb.com/repo/maxscale/latest/apt"
+    - repo_deb_tools: "deb [arch=amd64] http://downloads.mariadb.com/Tools/ubuntu"
+    - linux_distribution: Ubuntu
+    - distribution_release: jammy
+    - mariadb_packages:
+      - mariadb-server
+      - mariadb-common
+      - python3-mysqldb
+      - python3-openssl
+  vars_files: # importación de variables desde fichero
+    - vars.yaml
+
+  tasks:
+    - name: Update repositories
+      apt: update_cache=yes
+      ignore_errors: yes
+    - name: Install Mariadb Requirements for {{ linux_distribution }} {{ distribution_release }}
+      package:
+        name: "{{ repo_software_packages }}"
+        state: present
+    - name: Add MariaDB Repository Key for {{ linux_distribution }} {{ distribution_release }}
+      apt_key:
+        url: "{{ key_url }}"
+        state: present
+    - name: Add MariaDB Repository for {{ linux_distribution }} {{ distribution_release }}
+      apt_repository:
+        repo: "{{ repo_deb }} {{ distribution_release }}  main"
+        state: present
+        filename: mariadb
+        #register: addmariadbrepo
+        #notify: Update repo cache
+    - name: Add MariaDB Repository debug for {{ linux_distribution }} {{ distribution_release }}
+      apt_repository:
+        repo: "{{ repo_deb_debug }} {{ distribution_release }}  main/debug"
+        state: present
+        filename: mariadb
+        #register: addmariadbrepo
+        #notify: Update repo cache
+    #- name: Add MariaDB Repository MaxScale for {{ linux_distribution }} {{ distribution_release }}
+    #  apt_repository:
+    #    repo: "{{ repo_deb_max_scale }} {{ distribution_release }}  main"
+    #    state: present
+    #    filename: mariadb
+        #register: addmariadbrepo
+        #notify: Update repo cache
+    #- name: Add MariaDB Repository Tools for {{ linux_distribution }} {{ distribution_release }}
+    #  apt_repository:
+    #    repo: "{{ repo_deb_tools }} {{ distribution_release }}  main"
+    #    state: present
+    #    filename: mariadb
+    #    #register: addmariadbrepo
+    #    #notify: Update repo cache   
+    - name: Update repositories
+      apt: update_cache=yes
+      ignore_errors: yes
+    - name: Install Mariadb server for {{ linux_distribution }} {{ distribution_release }}
+      apt:
+        name: "{{ mariadb_packages }}"
+        state: present
+    - name: Servicio arrancado
+      service:
+        name: mariadb
+        state: started
+        enabled: true
+    - name: Habilitar UFW
+      ufw:
+        state: enabled
+        policy: deny
+    - name: Habilitar el log
+      ufw:
+        logging: 'on'
+    - name: abrir el firewall para 22
+      ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+    - name: abrir el firewall para 3306
+      ufw:
+        rule: allow
+        port: "3306"
+        proto: tcp
+    - name: Set MariaDB root password for 127.0.0.1, localhost
+      mysql_user:
+        name: root
+        password: "{{ mysql_root_password }}"
+        host: "{{ item }}"
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        #login_unix_socket: "{{ mariadb_socket }}"
+        state: present
+      with_items:
+        - 127.0.0.1
+        - localhost
+      #when: check_passwd_root.rc == 0
+      #notify: Flush Priviliges
+    - name: Remove all anonymous user
+      mysql_user:
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        name: 'test'
+        host_all: yes
+        state: absent
+      #notify: Flush Priviliges
+    - name: Flush Priviliges
+      command: mysql -u root -p{{ mysql_root_password }} -e "FLUSH PRIVILEGES"
+    - name: Create Database
+      mysql_db:
+        name: "{{ database_name }}"
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        state: present
+
+    - name: Create mysql User defined database
+      mysql_user:
+        name: "{{ database_user }}"
+        password: "{{ database_password }}"
+        priv: '{{ database_name }}.*:{{ mysql.privileges }}'
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        state: present
+...
+```
+
+Para desinstalar la base de datos, vemos el archivo uninstall.yaml:
+
+```
+---
+- name: Uninstall Databases
+  hosts: databases
+  vars:
+    - repo_software_packages:
+        - software-properties-common
+        - dirmngr
+        - apt-transport-https
+    - key_url: "https://mariadb.org/mariadb_release_signing_key.asc"
+    - repo_deb: "deb [arch=amd64] https://dlm.mariadb.com/repo/mariadb-server/10.9/repo/ubuntu"
+    - repo_deb_debug: "deb [arch=amd64,arm64] https://dlm.mariadb.com/repo/mariadb-server/10.9/repo/ubuntu"
+    - repo_deb_max_scale: "deb [arch=amd64,arm64] https://dlm.mariadb.com/repo/maxscale/latest/apt"
+    - repo_deb_tools: "deb [arch=amd64] http://downloads.mariadb.com/Tools/ubuntu"
+    - linux_distribution: Ubuntu
+    - distribution_release: jammy
+    - mariadb_packages:
+      - mariadb-server
+      - mariadb-common
+      - python3-mysqldb
+      - python3-openssl
+  vars_files: # importación de variables desde fichero
+    - vars.yaml
+
+  tasks:
+    - name: Habilitar UFW
+      ufw:
+        state: enabled
+        policy: deny
+    - name: Habilitar el log
+      ufw:
+        logging: 'on'
+    - name: abrir el firewall para 22
+      ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+    - name: cerrar el firewall para 3306
+      ufw:
+        rule: deny
+        port: "3306"
+        proto: tcp
+    - name: Servicio parado y quitado de arranque
+      service:
+        name: mariadb
+        state: stopped
+        enabled: false
+
+    - name: Uninstall Mariadb server for {{ linux_distribution }} {{ distribution_release }}
+      apt:
+        name: "{{ mariadb_packages }}"
+        state: absent
+    - name: Uninstall Mariadb Requirements for {{ linux_distribution }} {{ distribution_release }}
+      package:
+        name: "{{ repo_software_packages }}"
+        state: absent
+    - name: Remove MariaDB Repository for {{ linux_distribution }} {{ distribution_release }}
+      apt_repository:
+        repo: "{{ repo_deb }} {{ distribution_release }}  main"
+        state: absent
+        filename: mariadb
+        #register: addmariadbrepo
+        #notify: Update repo cache
+    - name: Remove MariaDB Repository debug for {{ linux_distribution }} {{ distribution_release }}
+      apt_repository:
+        repo: "{{ repo_deb_debug }} {{ distribution_release }}  main/debug"
+        state: absent
+        filename: mariadb
+        #register: addmariadbrepo
+        #notify: Update repo cache
+    - name: Remove MariaDB Repository Key for {{ linux_distribution }} {{ distribution_release }}
+      apt_key:
+        url: "{{ key_url }}"
+        state: absent  
+  
+    - name: Update repositories
+      apt: update_cache=yes
+      ignore_errors: yes
+    
+...
+```
+
+## 11. Facts
+
+Muestran información detallada de los nodos, de un host. Para recopilar esta info, se puede usar el módulo **setup**. Para ver la información de un host:
+
+``` 
+ansible nombre_host -m setup -a ""
+```
+
+O filtrando por un valor:
+
+``` 
+ansible nombre_host -m setup -a "filter=distribution"
+```
+
+## 12. Handlers
+
+Se utilizan para registrar y manejar eventos en Ansible. Para ello, dentro de un playbook insertaremos la propiedad notify. Y esto incluirá a aquello que entre en el archivo dentro de handlers. Por su parte, handlers va a la misma altura que vars, por ejemplo. Veamos un archivo como muestra donde se incluye el notify Flush Privileges y su correspondiente handler (tasks.yaml):
+
+```
+---
+- hosts: databases
+  vars:
+    - repo_software_packages:
+        - software-properties-common
+        - dirmngr
+        - apt-transport-https
+    - key_url: "https://mariadb.org/mariadb_release_signing_key.asc"
+    - repo_deb: "deb [arch=amd64] https://dlm.mariadb.com/repo/mariadb-server/10.9/repo/ubuntu"
+    - repo_deb_debug: "deb [arch=amd64,arm64] https://dlm.mariadb.com/repo/mariadb-server/10.9/repo/ubuntu"
+    - repo_deb_max_scale: "deb [arch=amd64,arm64] https://dlm.mariadb.com/repo/maxscale/latest/apt"
+    - repo_deb_tools: "deb [arch=amd64] http://downloads.mariadb.com/Tools/ubuntu"
+    - linux_distribution: Ubuntu
+    - distribution_release: jammy
+    - mariadb_packages:
+      - mariadb-server
+      - mariadb-common
+      - python3-mysqldb
+      - python3-openssl
+  vars_files: # importación de variables desde fichero
+    - vars.yaml
+  handlers:
+    - name: Flush Priviliges
+      command: mysql -u root -p{{ mysql_root_password }} -e "FLUSH PRIVILEGES"
+  tasks:
+    - name: Update repositories
+      apt: update_cache=yes
+      ignore_errors: yes
+    - name: Install Mariadb Requirements for {{ linux_distribution }} {{ distribution_release }}
+      package:
+        name: "{{ repo_software_packages }}"
+        state: present
+    - name: Add MariaDB Repository Key for {{ linux_distribution }} {{ distribution_release }}
+      apt_key:
+        url: "{{ key_url }}"
+        state: present
+    - name: Add MariaDB Repository for {{ linux_distribution }} {{ distribution_release }}
+      apt_repository:
+        repo: "{{ repo_deb }} {{ distribution_release }}  main"
+        state: present
+        filename: mariadb
+        #register: addmariadbrepo
+        #notify: Update repo cache
+    - name: Add MariaDB Repository debug for {{ linux_distribution }} {{ distribution_release }}
+      apt_repository:
+        repo: "{{ repo_deb_debug }} {{ distribution_release }}  main/debug"
+        state: present
+        filename: mariadb
+        #register: addmariadbrepo
+        #notify: Update repo cache
+    #- name: Add MariaDB Repository MaxScale for {{ linux_distribution }} {{ distribution_release }}
+    #  apt_repository:
+    #    repo: "{{ repo_deb_max_scale }} {{ distribution_release }}  main"
+    #    state: present
+    #    filename: mariadb
+        #register: addmariadbrepo
+        #notify: Update repo cache
+    #- name: Add MariaDB Repository Tools for {{ linux_distribution }} {{ distribution_release }}
+    #  apt_repository:
+    #    repo: "{{ repo_deb_tools }} {{ distribution_release }}  main"
+    #    state: present
+    #    filename: mariadb
+    #    #register: addmariadbrepo
+    #    #notify: Update repo cache   
+    - name: Update repositories
+      apt: update_cache=yes
+      ignore_errors: yes
+    - name: Install Mariadb server for {{ linux_distribution }} {{ distribution_release }}
+      apt:
+        name: "{{ mariadb_packages }}"
+        state: present
+    - name: Servicio arrancado
+      service:
+        name: mariadb
+        state: started
+        enabled: true
+    - name: Habilitar UFW
+      ufw:
+        state: enabled
+        policy: deny
+    - name: Habilitar el log
+      ufw:
+        logging: 'on'
+    - name: abrir el firewall para 22
+      ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+    - name: abrir el firewall para 3306
+      ufw:
+        rule: allow
+        port: "3306"
+        proto: tcp
+    - name: Set MariaDB root password for 127.0.0.1, localhost
+      mysql_user:
+        name: root
+        password: "{{ mysql_root_password }}"
+        host: "{{ item }}"
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        #login_unix_socket: "{{ mariadb_socket }}"
+        state: present
+      with_items:
+        - 127.0.0.1
+        - localhost
+      #when: check_passwd_root.rc == 0
+      notify: Flush Priviliges
+    
+    - name: Remove all anonymous user
+      mysql_user:
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        name: 'test'
+        host_all: yes
+        state: absent
+      notify:
+      - Flush Priviliges
+    - name: Create Database
+      mysql_db:
+        name: "{{ database_name }}"
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        state: present
+    - name: Create mysql User defined database
+      mysql_user:
+        name: "{{ database_user }}"
+        password: "{{ database_password }}"
+        priv: '{{ database_name }}.*:{{ mysql.privileges }}'
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        state: present
+      notify:
+      - Flush Priviliges
+...
+```
+
+En este caso, actuará sobre los hosts de base de datos, que en nuestro inventario sería la u3. Después de instalar el servidor MariaDB, hará el flush privileges a modo de evento. 
+
+A modo de resumen, primero se define el handler y luego la llamada a ese handler mediante notify cuando sea necesario. 
+
+## 13. Import e include
+
+Se utilizan para importar, por ejemplo, diferentes playbooks dentro de uno solo. Veamos un ejemplo (main.yaml):
+
+``` 
+---
+- hosts: all
+  tasks:
+    - debug:
+        msg: play1
+- name: Deploy webservers
+  import_playbook: tasks/webservers.yaml
+- name: Deploy Databases
+  import_playbook: tasks/databases.yaml
+...
+```
+
+## 14. Condicionales
+
+Como su propio nombre, son recursos que se introducen en un playbook cuando las tareas a ejecutar dependen de cierta condición. Se usa mediante la normativa when. Veamos un ejemplo:
+
+```
+---
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: debug ansible_facts.os_family
+      debug:
+        msg: "OS Family: {{ ansible_facts.os_family }}"
+    - name: ejecuta comando condicialmente
+      shell: echo cosa >> fichero.txt
+      when: ansible_facts['os_family'] == "Debian"
+      register: result
+    - name: debug result
+      debug:
+        var: result
+        verbosity: 2
+    #- name: debug ansible_facts.os_family
+    #  debug:
+    #    msg: "{{ ansible_facts }}"
+...
+```
+
+En este ejemplo, queremos que la acción se lleve a cabo solo sobre aquellas máquinas de distribución Debian.
+
+
+## 15. Módulos y argumentos
+
+Los módulos son los que nos va a dar tareas que luego podemos integrar dentro de nuestros playbooks. 
+
+Dentro de nuestro control disponemos de varias localizaciones para los módulos:
+
+* **ANSIBLE_LIBRARY**: variable de entorno similar a PATH
+* **~/.ansible/plugins/modules**
+* **/usr/share/ansible/plugins/modules/**
+
+Disponemos de un Cli que nos dará la info al respecto de cada módulo que es ansible doc:
+
+``` 
+ansible-doc nombre_modulo
+```
+
+Por ejemplo:
+
+``` 
+ansible-doc apt
+```
+
+## 16. Módulo File
+
+Es el módulo integrado en Ansible más usado. Ejemplo de uso:
+
+``` 
+- name: Create a directory if it does not exist
+    ansible.builtin.file:
+     path:/var/www/html/wordpress
+     state: directory
+     mode: '0755'
+```
+
+``` 
+-name: Update modification and access time of given file
+   ansible.builtin.file:
+    path:/var/www/html/data.html
+    state:file
+    modification_time: now
+    access_time: now
+```
+
+O para cambiar el propietario de un directorio:
+
+```
+-name: Recursively change ownership of a directory
+   ansible.builtin.file:
+    path:/var/www/html
+    state: directory
+    recurse: yes
+    owner: www-data
+    group: www-data
+```
+
+O para eliminar fichero:
+
+```
+-name: Remove file (delete file)
+   ansible.builtin.file:
+    path:/var/www/html/wordpress/data.html
+    state: absent
+```
+
+O directorio:
+
+```
+-name: Recursively remove directory
+   ansible.builtin.file:
+    path:/var/www/html/wordpress
+    state: absent
+```
+
+
+
+
+
+
+
 
 
 
