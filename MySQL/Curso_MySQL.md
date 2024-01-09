@@ -435,6 +435,336 @@ Con esta consulta decimos que nos muestre todos los libros agrupados por fecha, 
 
 Así es como funciona having. 
 
+## 21. Registros duplicados (distinct) 
+
+Para mostrar los distintos valores de una consulta:
+
+``` 
+select distinct autor from libros;
+```
+
+## 22. Remplazar registros (replace)
+
+Para reemplazar valores:
+
+``` 
+replace into alumnos(codigo,nombre) values (1,'Salvador');
+```
+
+## 23. Cláusula limit - Rand
+
+Para limitar el número de registros a mostrar en una consulta. Por ejemplo, para mostrar los tres libros más vendidos en 2023:
+
+``` 
+select titulo, autor from libros
+where año = 2023
+order by precio
+limit 3;
+```
+
+La funcion rand (de random) se usa para mostrar valores al azar. Por ejemplo, para mostrar los nombres y documentos de alumnos tomados al azar de la tabla alumnos:
+
+``` 
+select nombre,documento from alumnos
+order by rand()
+limit 3;
+```
+
+## 24. Índices
+
+Son muy utiles cuando queremos analizar una tabla que cuenta con muchos registros.
+
+Creamos una tabla:
+
+``` 
+create table medicamentos (
+  codigo int unsigned auto_increment,
+  nombre varchar(20) not null,
+  laboratorio varchar(20),
+  precio decimal (6,2) unsigned,
+  cantidad int unsigned,
+  primary key(codigo),
+  index i_laboratorio (laboratorio) (Aquí marco el índice deseado, sino por defecto sería el nombre de la tabla)
+);
+```
+
+Para mostrar los indices de una tabla:
+
+``` 
+show index from medicamentos;
+```
+
+O en nuestro caso:
+
+``` 
+show index from laboratorio;
+```
+
+Para eliminar un índice:
+
+``` 
+drop index i_laboratorio on medicamentos;
+```
+
+También podemos crear un índice bajo el parámetro unique. 
+
+``` 
+create table medicamentos (
+  codigo int unsigned auto_increment,
+  nombre varchar(20) not null,
+  laboratorio varchar(20),
+  precio decimal (6,2) unsigned,
+  cantidad int unsigned,
+  unique i_codigo (codigo),
+  unique i_laboratorio (laboratorio)
+);
+```
+
+## 25. Alterar tablas - (alter table - add - drop - modify - change)
+
+Para alterar una tabla, añadiendo una nueva columna:
+
+``` 
+alter table libros add ventas unsigned;
+```
+
+Y comprobamos con describe. 
+
+Otro ejemplo:
+
+``` 
+alter table libros add editorial varchar(30);
+```
+
+Para eliminar un campo existente:
+
+``` 
+alter table libros drop ventas;
+```
+
+Para modificar un campo:
+
+``` 
+alter table libros modify precio decimal(5,2);
+```
+
+**Nota**: No podemos modificar un primary key de este modo.
+
+Para cambiar el nombre de un campo:
+
+``` 
+alter table libros change precio costo_libro decimal(5,2) not null;
+```
+
+## 26. Alterar índices - (alter table - add index - drop index)
+
+Para agregar un índice a una tabla:
+
+``` 
+alter table libros add index i_precioventas(precio,ventas);
+```
+
+Y vemos el índice:
+
+``` 
+show index from libros;
+```
+
+Para agregar una clave primaria:
+
+``` 
+alter table libros add primary key (titulo);
+```
+
+Para eliminar esa clave primaria:
+
+``` 
+alter table libros drop primary key;
+```
+
+Para eliminar el índice.
+
+``` 
+alter table libros drop index i_precioventas;
+```
+
+## 27. Renombrar tablas (alter table - rename - rename table)
+
+Para intercambiar el nombre de una tabla:
+
+``` 
+rename table libros to articulos;
+```
+
+Si hubiera una tabla libros y otra articulos, podríamos intercambiar sus nombres:
+
+``` 
+rename table libros to articulos, articulos to libros;
+```
+
+## 28. Encriptación de datos (aes_encrypt - aes_decrypt)
+
+Creamos una tabla para los clientes:
+
+``` 
+create table clientes (
+    nombre varchar(50),
+    mail varchar(70),
+    tarjetacredito blob, #blob es de tipo imagen, y se usa para tareas de encriptación.
+    primary key (nombre)
+);
+```
+
+E insertamos los valores:
+
+``` 
+insert into clientes
+values('David Segura','david@gmail.com',aes_encrypt('2510','abcd'));
+```
+
+* aes_encrypt tiene dos parámetros (valor,clave).
+
+Si hago una consulta a la table, este registro me aparecera en blob, encriptado. Para poder desencriptar ese valor:
+
+``` 
+select nombre,cast(aes_decrypt(tarjetacredito,'abcd') as char) from clientes;
+```
+
+## 29. Funciones de control de flujo (if) 
+
+Veamos un ejemplo. Es política de la empresa festejar cada fin de mes, los cumpleaños de todos los empleados que cumplen ese mes. Si los empleados son de sexo femenino, se les regala un ramo de rosas, si son de sexo masculino, una corbata. La secretaria de la Gerencia necesita saber cuántos ramos de rosas y cuántas corbatas debe comprar para el mes de mayo:
+
+``` 
+ select sexo,count(sexo),
+  if (sexo='f','rosas','corbata') as 'Obsequio'
+  from empleados
+  where month(fechanacimiento)=5
+  group by sexo;
+``` 
+
+Además, si el empleado cumple 10,20,30,40... años de servicio, se le regala una placa recordatoria. La secretaria de Gerencia necesita saber la cantidad de años de servicio que cumplen los empleados que ingresaron en el mes de abril para encargar dichas placas:
+
+``` 
+ select nombre,fechaingreso,
+  year(current_date)-year(fechaingreso) as 'Años de servicio',
+  if ( (year(current_date)-year(fechaingreso)) %10=0,'Si','No') as 'Placa'
+  from empleados
+  where month(fechaingreso)=4;
+``` 
+
+Muestre todos los registros y un mensaje si las entradas para una función están agotadas:
+
+``` 
+ select sala,fecha,hora,
+  if (capacidad=entradasvendidas,'sala llena',capacidad-entradasvendidas) as 'Entradas disponibles'
+  from entradas;
+``` 
+
+## 30.  Funciones de control de flujo (case)
+
+Veamos unos ejemplos prácticos de como se usa case.
+
+Si el alumno tiene un promedio menor a 4, muestre un mensaje "reprobado", si el promedio es mayor o igual a 4 y menor a 7, muestre "regular", si el promedio es mayor o igual a 7, muestre "promocionado", usando la primer sintaxis de "case":
+
+``` 
+ select legajo,promedio,
+  case truncate(promedio,0)
+   when 0 then 'reprobado'
+   when 1 then 'reprobado'
+   when 2 then 'reprobado'
+   when 3 then 'reprobado'
+   when 4 then 'regular'
+   when 5 then 'regular'
+   when 6 then 'regular'
+   when 7 then 'promocionado'
+   when 8 then 'promocionado'
+   when 9 then 'promocionado'
+   else 'promocionado'
+  end as 'estado'
+ from alumnos;
+```
+
+Muestre el nombre y fecha de ingreso a la página y con un "case" muestre si el nombre del mes corresponde al 1º, 2º o 3º cuatrimestre del año.
+
+``` 
+ select nombre,fecha,
+  case when (monthname(fecha) in ('January','February','March','April'))
+   then '1º cuatrimestre'
+  when (monthname(fecha) in ('May','June','July','August'))
+   then '2º cuatrimestre'
+  else '3º cuatrimestre'
+  end as 'mes'
+ from visitas;
+``` 
+
+## 31. Varias tablas (join)
+
+Para realizar una consulta sobre dos tablas:
+
+``` 
+select * from libros join editoriales on libros.codigoeditorial=editoriales.codigo;
+```
+
+También puede hacerse mediante alias:
+
+``` 
+select * from libros as l join editoriales as e on l.codigoeditorial=e.codigo;
+```
+
+## 32. Varias tablas (left join)
+
+Se usa para unir datos de una tabla con otra, en este caso los datos de la tabla izquierda para pasar aquellos datos que queramos a la tabla derecha en la consulta.
+
+Queremos saber de qué provincias no tenemos clientes:
+
+```
+select p.codigo,p.nombre from provincias as p
+left join clientes as c (Aquí unimos a la tabla clientes)
+on c.codigoProvincia=p.codigo (Unimos sobre la clave foranea que vincula ambas tablas)
+where c.codigoprovincia is null;
+```
+
+Con esta consulta, hemos pasado los datos de la tabla provincias a la de clientes, incluso aquellos datos de provincias que no aparecen en clientes. 
+
+Veamos otro caso. Queremos saber de qué provincias sí tenemos clientes, sin repetir el nombre de la provincia:
+
+``` 
+ select distinct p.codigo,p.nombre from provincias as p
+  left join clientes as c
+  on c.codigoProvincia=p.codigo
+  where c.codigoprovincia is not null;
+``` 
+
+## 33. Varias tablas (right join)
+
+Se usa para unir datos de una tabla con otra, en este caso los datos de la tabla derecha para pasar aquellos datos que queramos a la tabla izquierda en la consulta.
+
+Por ejemplo, para buscar los nombres de las editoriales que están presentes en libros. Podemos realizar la búsqueda de modo inverso con **right join**.
+
+``` 
+select * from libros as l
+right join editoriales as e
+on e.codigo=l.codigoeditorial;
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
