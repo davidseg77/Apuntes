@@ -747,6 +747,259 @@ right join editoriales as e
 on e.codigo=l.codigoeditorial;
 ```
 
+## 34. Subconsultas
+
+Utilizadas para reemplazar una expresión, no dejan de ser una consulta sobre otra consulta. Para ver un ejemplo.
+
+Mostramos el título y precio del libro más costoso:
+
+``` 
+ select titulo,autor, precio
+  from libros
+  where precio=
+   (select max(precio) from libros);
+``` 
+
+### 34.1 Subconsultas con in
+
+En este apartado, vamos a ver aquellas subconsultas que retornan una lista de valores reemplazando a una expresión en una clausula where que contiene la palabra clave in. Veamos un par de ejemplos:
+
+Necesitamos conocer los nombres de las ciudades de aquellos clientes cuyo domicilio es en calle "San Martin".
+
+``` 
+ select nombre
+   from ciudades
+   where codigo in
+     (select codigociudad
+       from clientes
+       where domicilio like 'San Martin %'); 
+``` 
+
+Obtenga los nombre de las ciudades de los clientes cuyo apellido no comienza con una letra específica.
+
+``` 
+ select nombre
+   from ciudades
+   where codigo not in
+    (select codigociudad
+       from clientes
+       where nombre like 'G%');   
+``` 
+
+### 34.2 Subconsultas any - some - all
+
+Any y some son sinónimos. Se encargan de verificar si en alguna fila de la lista resultado de una subconsulta se encuentra el valor especificado en la condición.
+
+Veamos unos ejemplos.
+
+Muestre los socios que serán compañeros en tenis y también en natación.
+
+``` 
+ select nombre
+  from socios
+  join inscriptos as i
+  on numero=numerosocio
+  where deporte='natacion' and 
+  numero= any
+  (select numerosocio
+    from inscriptos as i
+    where deporte='tenis');  
+``` 
+
+Vea si el socio 1 se ha inscripto en algún deporte en el cual se haya inscripto el socio 2.
+
+``` 
+ select deporte
+  from inscriptos as i
+  where numerosocio=1 and
+  deporte= any
+   (select deporte
+    from inscriptos as i
+    where numerosocio=2);
+``` 
+
+Muestre los deportes en los cuales el socio 2 pagó más cuotas que TODOS los deportes en que se inscribió el socio 1.
+
+``` 
+ select deporte
+  from inscriptos as i
+  where numerosocio=2 and
+  cuotas>all
+   (select cuotas
+    from inscriptos
+    where numerosocio=1);
+``` 
+
+### 34.3 Subconsultas (Exists y No Exists)
+
+Los operadores exists y no exists se emplean para determinar si hay o no datos en una lista de valores. 
+
+Veamos algunos ejemplos.
+
+Emplee una subconsulta con el operador "exists" para devolver la lista de socios que se inscribieron en 'natacion'.
+
+``` 
+ select nombre
+  from socios as s
+  where exists
+   (select * from inscriptos as i
+     where s.numero=i.numerosocio
+     and i.deporte='natacion');
+``` 
+
+Busque los socios que NO se han inscripto en 'natacion' empleando "not exists".
+
+``` 
+ select nombre
+  from socios as s
+  where not exists
+   (select * from inscriptos as i
+     where s.numero=i.numerosocio
+     and i.deporte='natacion');  
+``` 
+
+## 35. Vistas
+
+Una vista es como una tabla virtual que almacena una consulta, para poder ser usada posteriormente las veces convenidas. 
+
+Para crear una vista:
+
+``` 
+create view nombrevista as
+select * from libros;
+```
+
+Usos muy aconsejables de vistas a la hora de administrar una base de datos:
+
+* **Ocultar info**: Permitiendo el acceso a algunos datos y manteniendo oculto el resto de la info que no se incluye en la vista.
+
+* **Simplificar la administración de los permisos de usuario**: Se pueden dar permisos al usuario para que solo pueda acceder a los datos a través de vistas, en lugar de concederle permisos para acceder a ciertos campos, así se protegen las tablas base de cambios en su estructura.
+
+* **Mejorar el rendimiento**: Se puede evitar tipear instrucciones repetidamente almacenando en una vista el resultado de una consulta compleja que incluya info de varias tablas.
+
+Para eliminar una vista:
+
+``` 
+drop view nombrevista
+```
+
+## 36. Procedimientos almacenados
+
+Son conjuntos de instrucciones (comandos SQL) a los que se les da un nombre, que se almacenan en el servidor. Permiten encapsular tareas repetitivas. 
+
+Por ejemplo:
+
+``` 
+delimiter //
+create procedure libros_limite_stock()
+begin
+  select * from libros
+  where stock<=10;
+end //
+delimiter ;
+```
+
+Para crear un procedimiento. Cree un procedimiento almacenado llamado "pa_empleados_sueldo" que seleccione los nombres, apellidos y sueldos de los empleados.
+
+``` 
+ delimiter //
+ create procedure pa_empleados_sueldo()
+ begin
+   select nombre,apellido,sueldo
+     from empleados;
+ end //
+ delimiter ;
+``` 
+
+Para ejecutar este procedimiento:
+
+``` 
+call pa_empleados_sueldo();
+```
+
+Para eliminarlo:
+
+``` 
+drop procedure pa_empleados_sueldo();
+```
+
+### 36.1 Procedimientos almacenados (parámetros de entrada)
+
+Dentro del procedimiento creamos un parámetro de entrada que habremos de insertar en la consulta cuando el procedimiento sea llamado. Veamos ejemplo, aunque es sencillo de entender:
+
+``` 
+ delimiter //
+ create procedure pa_libros_autor(in p_autor varchar(30))
+ begin
+   select titulo, editorial,precio
+     from libros
+     where autor= p_autor;
+ end //
+ delimiter ;
+```
+
+Cuando lo ejecute, se haría de este modo:
+
+``` 
+ 
+ call pa_libros_autor('David Segura');
+```
+
+Y nos mostrará el título, editorial y precio del libro de David Segura. 
+
+Igualmente, podemos insertar más de un parámetro de entrada.
+
+``` 
+ delimiter //
+ create procedure pa_libros_autor_editorial(
+   in p_autor varchar(30),
+   in p_editorial varchar(20))
+ begin
+   select titulo, precio
+     from libros
+     where autor= p_autor and
+           editorial=p_editorial;
+ end //
+ delimiter ;
+```
+
+Y lo llamaría del siguiente modo:
+
+``` 
+ call pa_libros_autor_editorial('Richard Bach','Planeta');
+```
+
+### 36.2 Procedimientos almacenados (parámetros de salida)
+
+Pueden insertarse dentro de un procedimiento combinándolos junto con los parámetros de salida.
+
+Cree un procedimiento almacenado llamado "pa_seccion" al cual le enviamos el nombre de una sección y que nos retorne el promedio de sueldos de todos los empleados de esa sección y el valor mayor de sueldo (de esa sección)
+
+``` 
+delimiter //
+ create procedure pa_seccion(
+   in p_seccion varchar(20),
+   out promedio float,
+   out mayor float)
+ begin
+   select avg(sueldo) into promedio
+     from empleados
+     where seccion=p_seccion;
+   select max(sueldo) into mayor
+   from empleados
+    where seccion=p_seccion; 
+  end //  
+ delimiter ;  
+``` 
+
+Ejecute el procedimiento creado anteriormente con distintos valores.
+
+``` 
+ call pa_seccion('Contaduria', @promedio, @mayor);
+ select @promedio,@mayor;
+``` 
+ 
+
 
 
 
