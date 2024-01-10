@@ -999,6 +999,449 @@ Ejecute el procedimiento creado anteriormente con distintos valores.
  select @promedio,@mayor;
 ``` 
  
+### 36.3 Procedimientos almacenados (estructura condicional if)
+
+Como cualquier otro lenguaje procedimental el gestor de base de datos MySQL dispone la estructura 
+condicional if para tomar decisiones dentro de un procedimiento almacenado.
+
+La sintaxis de la **estructura condicional if simple** es:
+
+``` 
+if [condición] then
+   [instrucciones]
+end if;
+``` 
+
+La sintaxis de la **estructura condicional if compuesta** es:
+
+``` 
+if [condición] then
+   [instrucciones]
+else
+   [instrucciones]
+end if;
+``` 
+
+La sintaxis de la **estructura condicional if anidada** es:
+
+``` 
+if [condición] then
+   [instrucciones]
+elseif [condición] then
+   [instrucciones]
+elseif [condición] then
+   [instrucciones]
+elseif [condición] then
+   [instrucciones]
+......
+else
+   [instrucciones]
+end if;
+``` 
+
+Veamos un ejemplo.
+
+Podemos utilizar operadores lógicos en una condición de un if, crearemos un nuevo procedimiento
+almacenado que muestre el mayor de 3 enteros:
+
+``` 
+delimiter //
+create procedure pa_mayor3(
+  in valor1 int,
+  in valor2 int,
+  in valor3 int)
+begin
+  if valor1>valor2 and valor1>valor3 then
+    select valor1;
+  elseif valor2>valor3 then
+    select valor2;
+  else
+    select valor3;
+  end if;
+end //
+delimiter ;
+``` 
+
+Y lo llamamos:
+
+``` 
+call pa_mayor3(200, 40, 4000);
+``` 
+
+Veamos otro ejemplo. Crearemos un procedimiento almacenado que le enviemos como parámetro los nombres de dos provincias y  genere como resultado el nombre de la provincia que tiene más clientes y su cantidad, en caso de tener la misma cantidad mostrar las dos provincias y la cantidad:
+
+```
+delimiter //
+ create procedure pa_mas_clientes_provincias(
+   in provincia1 varchar(20),
+   in provincia2 varchar(20))
+ begin
+   declare canti1 int;
+   declare canti2 int;
+   select count(*) into canti1 from clientes as cli
+     join provincias as pro 
+     on pro.codigo=cli.codigoprovincia
+     where pro.nombre=provincia1;
+   select count(*) into canti2 from clientes as cli
+     join provincias as pro 
+     on pro.codigo=cli.codigoprovincia
+     where pro.nombre=provincia2;     
+   if canti1>canti2 then
+     select provincia1,canti1;
+   elseif canti2>canti1 then
+     select provincia2,canti2;
+   else
+     select provincia1,provincia2,canti1;
+   end if;  
+ end //
+ delimiter ;
+```
+
+### 36.4 Procedimientos almacenados (estructura condicional case)
+
+Otra estructura condicional disponible en MySQL es la estructura 'case'.
+
+Se utiliza cuando hay múltiples condiciones y remplaza a la estructuras if/elseif.
+
+Veamos un ejemplo de uso.
+
+Confeccionamos un procedimiento almacenado que le enviemos un entero comprendido entre 1 y 3. El segundo parámetro debe retornar el tipo de medalla que representa dicho número, sabiendo que:
+
+1 - oro
+2 - plata
+3 - bronce
+
+``` 
+delimiter //
+create procedure pa_tipo_medalla(
+  in puesto int,
+  out tipo varchar(20))
+begin
+  case puesto
+    when 1 then
+      set tipo='oro';
+    when 2 then
+      set tipo='plata';
+    when 3 then
+      set tipo='bronce';
+  end case;          
+end //
+delimiter ;
+``` 
+
+Y ejecutamos:
+
+``` 
+call pa_tipo_medalla(1,@ti);
+
+select @ti;
+```
+
+## 37. Triggers
+
+Un trigger es un bloque de algoritmo que se ejecuta cuando se intenta modificar los datos de una tabla. Se definen para una tabla específica y se crean para conservar la integridad referencial y la coherencia entre los datos de distintas tablas. 
+
+Si se intenta modificar datos de una tabla en la que se definió un disparador para alguna de estas acciones (inserción, actualización y eliminación), el disparador se ejecuta de forma automática.
+
+Veamos un ejemplo. Administramos los datos de dos tablas llamadas: "libros" y "ventas". Cada vez que se produzca la venta de libros reducir el campo stock de la tabla "libros" mediante un trigger definido en la tabla ventas.
+
+``` 
+ delimiter //
+ create trigger before_ventas_insert
+   before insert
+   on ventas
+   for each row
+ begin
+   update libros set stock=libros.stock-new.cantidad
+     where new.codigolibro=libros.codigo; 
+ end //
+ delimiter ;
+```
+
+Procedemos a insertar una fila en la tabla 'ventas':
+
+``` 
+ insert into ventas(codigolibro, precio, cantidad)
+  values(1, 15, 1); 
+``` 
+
+Luego si controlamos la cantidad de libros en stock veremos que se ha reducido en 1.
+
+### 37.1 Disparadores (triggers - update trigger)
+
+Veamos el uso de triggers para actualizaciones.
+
+**Ejemplo**
+
+Del concepto anterior creamos nuevamente el disparador cuando se produce una venta para disminuir el  stock de libros:
+
+``` 
+ drop trigger if exists before_ventas_insert;  
+
+ delimiter //
+ create trigger before_ventas_insert
+   before insert
+   on ventas
+   for each row
+ begin
+   update libros set stock=libros.stock-new.cantidad
+     where new.codigolibro=libros.codigo; 
+ end //
+ delimiter ;
+``` 
+
+Creamos un nuevo disparador para actualizar el campo "stock" de la tabla "libros" cuando se elimina un registro de la tabla "ventas" (por ejemplo, si el comprador devuelve el o los libros comprados):
+
+``` 
+ drop trigger if exists before_ventas_delete;  
+  
+ delimiter //
+ create trigger before_ventas_delete
+   before delete
+   on ventas
+   for each row
+ begin
+  update libros set stock=libros.stock+old.cantidad
+     where old.codigolibro=libros.codigo;   
+ end //
+ delimiter ;
+``` 
+
+Procedemos a efectuar una venta y luego controlar que se ha reducido en 1 el stock de dicho libro en la tabla 'libros':
+
+``` 
+ insert into ventas(codigolibro, precio, cantidad) values(1, 15, 1);
+
+ select * from libros; 
+``` 
+
+Finalmente eliminamos la fila de la tabla 'ventas' por la devolución del libros, nuevamente podemos ver que gracias a la ejecución del trigger 'before_ventas_delete' se ha incrementado el stock en la tabla 'libros':
+
+``` 
+ delete from ventas where numero=1;
+ 
+ select * from libros;
+``` 
+
+### 37.2 Disparadores (triggers - delete trigger)
+
+Veamos el uso de triggers para eliminar datos. 
+
+**Ejemplo**
+
+Necesitamos almacenar en una tabla llamada "usuarios" los datos de los usuarios de un sitio web. Cada vez que el usuario cambia su clave se debe almacenar en otra tabla llamada "clavesanteriores" el dato de la clave vieja.
+
+Creamos ambas tablas con las siguientes estructuras:
+
+``` 
+create table usuarios(
+ nombre varchar(30),
+ clave varchar(30),
+ primary key (nombre)
+);
+``` 
+
+``` 
+create table clavesanteriores(
+ numero int auto_increment,
+ nombre varchar(30),
+ clave varchar(30),
+ primary key (numero)
+);
+``` 
+
+Creamos el trigger 'before_usuarios_update':
+
+``` 
+delimiter //
+create trigger before_usuarios_update
+  before update
+  on usuarios
+  for each row
+begin
+  insert into clavesanteriores(nombre, clave) values (old.nombre, old.clave); 
+end //
+delimiter ;
+``` 
+
+Este trigger se dispara cada vez que ejecutemos el comando SQL 'update' con la tabla 'usuarios':
+
+``` 
+  before update
+  on usuarios
+``` 
+
+El bloque del disparador se encuentra encerrado entre las palabras claves 'begin' y 'end'. 
+Nuestro algoritmo es ejecutar un comando SQL insert en la tabla 'clavesanteriores' insertando el nombre de usuario y clave previo a ser cambiado por el comando 'update' en la tabla 'usuarios'.
+
+Mediante las palabras claves 'old' y 'new' podemos acceder a los valores actuales de la fila y los valores que se actualizarán en la tabla 'usuarios':
+
+``` 
+old.nombre y old.clave
+new.nombre y new.clave
+``` 
+
+Ejecutemos ahora un insert en la tabla 'usuarios':
+
+``` 
+insert into usuarios(nombre,clave) values ('marcos','123abc');
+``` 
+
+El trigger no se ejecuta ya que solo hemos definido que se dispare para el comando 'update'.
+
+Ahora procedamos a modificar la clave del usuario mediante el comando 'update':
+
+``` 
+update usuarios set clave='999zzz' where nombre='marcos';
+``` 
+
+Cuando se ejecuta el 'update' además de actualizarse la clave del usuario en la tabla 'usuarios'
+se dispara el trigger donde se efectúa la inserción de una fila en la tabla 'clavesanteriores'.
+
+Listemos la tabla 'clavesanteriores'
+
+``` 
+select * from clavesanteriores;
+``` 
+
+Podemos comprobar que tenemos ahora una fila que contiene los datos:
+
+nombre: marcos
+clave: 123abc
+
+Si volvemos a cambiar la clave del usuario 'marcos':
+
+``` 
+update usuarios set clave='123456' where nombre='marcos';
+``` 
+
+Listamos nuevamente la tabla 'clavesanteriores':
+
+``` 
+select * from clavesanteriores;
+``` 
+
+Podemos comprobar que tenemos ahora dos filas que contiene los datos:
+
+nombre: marcos
+clave: 123abc
+nombre: marcos
+clave: 999zzz
+
+Con el trigger logramos tener el historial de todas las claves empleadas por los usuarios. Tener en cuenta que la última clave elegida por el usuario se encuentra en la tabla 'usuarios':
+
+``` 
+select * from usuarios;
+``` 
+
+Hemos dicho que un trigger se asocia a una tabla y a un evento en particular (insert, delete o update)
+
+
+## 38. Transacciones
+
+Para iniciar la transacción:
+
+``` 
+START TRANSACTION;
+```
+
+Para establecer el autocommit en 0. Es decir, para que el commit no es ejecute automáticamente:
+
+``` 
+SET AUTOCOMMIT=0;
+```
+
+A partir de ahora si yo ejecuto transacciones (insert, update o delete), tendré que guardar esos cambios manualmente:
+
+``` 
+commit;
+```
+
+Si quisiera volver atrás y deshacer esos cambios:
+
+``` 
+rollback;
+```
+
+Eso sí, importante, el rollback no actuará si ya has hecho commit. 
+
+
+## 39. Gestión de usuarios
+
+Para crear un usuario:
+
+``` 
+create user 'david'@'localhost' identified by 'password';
+```
+
+Para otorgar ciertos privilegios a un usuario sobre una base de datos:
+
+``` 
+grant insert,update,select on banco.* to david;
+``` 
+
+Para guardar esos cambios:
+
+``` 
+flush privileges;
+``` 
+
+Para quitar ciertos permisos a un usuario sobre una base de datos:
+
+``` 
+revoke select on banco from david;
+```
+
+O:
+
+``` 
+revoke all on banco.* from david;
+```
+
+Para mostrar los permisos de un usuario:
+
+``` 
+show grants for david@'localhost';
+```
+
+## 40. Respaldo y restauración de una base datos
+
+En el cuadro de búsqueda, ponemos editar variables del sistema. Accedemos a ese apartado, vamos a Path, Editar, y aquí en Nuevo copiamos la ruta completa de nuestra carpeta bin de Mysql. 
+
+Ahora en búsqueda vamos a Simbolo del sistema, y ahí es donde vamos a crear nuestro respaldo de la base de datos. Ponemos lo siguiente:
+
+``` 
+mysqldump -u david -ppassword database(por ej. sga) > ruta donde vamos a dejarla (C:\respaldos\sga.sql)
+```
+
+Habría que crear la carpeta respaldos en C:. Y nuestro respaldo ya sería creado.
+
+Si yo entro en mi Mysql y me voy dentro de la conexión a Server, Data Import, yo puedo escoger la opción Import from Self-Contained File. Y a su derecha, en los tres puntitos, escojo la ruta donde tengo mi archivo de respaldo. Debajo de esto, en Default Schema to be Imported to, colocamos el nombre de nuestra base de datos a importar, en este caso sga. Trás ello, damos en el recuadro de abajo a la derecha Start Import.
+
+**Nota**: Si molestara el panel de abajo, lo ocultamos en View. 
+
+
+## 41. Respaldo automático
+
+Nos vamos en el cuadro de búsqueda a Programador de tareas. Damos en Crear tarea básica, la llamados respaldo-MySQL. Escogemos su periodicidad, en este caso una sola vez, damos en siguiente y escogemos el programa a ejecutar. 
+
+Para este caso he creado un script (sga.bat) con la siguiente instrucción:
+
+``` 
+mysqldump -u david -ppassword database(por ej. sga) > ruta donde vamos a dejarla (C:\respaldos\sga.sql)
+```
+
+Le damos a finalizar y con ello se generará el respaldo automático el día y hora indicados.
+
+
+
+
+
+
+
+
+
+
 
 
 
