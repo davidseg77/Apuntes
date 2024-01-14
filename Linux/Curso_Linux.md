@@ -334,6 +334,112 @@ Para ver el estado de la contraseña de una cuenta:
 sudo passwd -S cuenta_usuario
 ```
 
+## 10. Shell Script
+
+### 10.1 IF
+
+Parámetros interesantes sobre if:
+
+* -d fichero = Si fichero existe, es un directorio
+* -e fichero = Si fichero existe, del tipo que sea
+* -f fichero = Si fichero existe, y es un fichero normal
+* -r fichero = Si fichero existe, y se puede leer
+* -s fichero = Si fichero existe, y tiene tamaño mayor que cero
+* -w fichero = Si fichero existe, y se puede escribir sobre él
+* -x fichero = Si fichero existe, y es ejecutable
+* -L fichero = Si fichero existe, y es un enlace simbólico
+
+Por ejemplo:
+
+```
+if [ -d /home/david ]
+then
+    echo 'El directorio existe'
+else 
+    echo 'No existe'
+fi
+```
+
+Y le damos permiso de ejecución al usuario:
+
+```
+chmod u+x script.sh
+```
+
+### 10.2 Ejemplo de menú (Con operadores y con case)
+
+``` 
+echo 'MENU PRINCIPAL'
+echo '--------------'
+echo
+echo '1- Visualiza la fecha de hoy'
+echo '2- Numero de usuarios del sistema'
+echo '3- Tiempo de funcionamiento del sistema'
+echo '1- Visualiza la fecha de hoy'
+echo
+```
+
+read -p 'Introduce una opcion: ' opcion
+
+if [ $opcion -lt 1 ] || [ $opcion -gt 4 ]
+then
+    echo 'El numero debe estar entre 1 y 4'
+    exit 5
+fi
+
+if [ $opcion -eq 4 ]
+then
+    exit
+elif [ $opcion -eq 1 ]
+then
+    date
+elif [ $opcion -eq 2 ]
+then
+    cat /etc/passwd | wc -l
+else
+    uptime -s
+fi
+```
+
+También podemos hacerlo con el método case:
+
+``` 
+echo 'MENU PRINCIPAL'
+echo '--------------'
+echo
+echo '1- Visualiza la fecha de hoy'
+echo '2- Numero de usuarios del sistema'
+echo '3- Tiempo de funcionamiento del sistema'
+echo '1- Visualiza la fecha de hoy'
+echo
+```
+
+read -p 'Introduce una opcion: ' opcion
+
+case $opcion in
+    1)
+      date
+      ;;
+    2)
+      cat /etc/passwd | wc -l
+      ;;
+    3)
+      uptime -s
+      ;;
+    4)
+      exit
+      ;;
+    *)
+      echo 'Introduce un valor entre 1 y 4'
+      ;;
+esac
+```
+
+
+
+
+
+
 
 
 
