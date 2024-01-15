@@ -377,7 +377,6 @@ echo '2- Numero de usuarios del sistema'
 echo '3- Tiempo de funcionamiento del sistema'
 echo '1- Visualiza la fecha de hoy'
 echo
-```
 
 read -p 'Introduce una opcion: ' opcion
 
@@ -412,7 +411,6 @@ echo '2- Numero de usuarios del sistema'
 echo '3- Tiempo de funcionamiento del sistema'
 echo '1- Visualiza la fecha de hoy'
 echo
-```
 
 read -p 'Introduce una opcion: ' opcion
 
@@ -434,6 +432,8 @@ case $opcion in
       ;;
 esac
 ```
+
+
 
 
 
