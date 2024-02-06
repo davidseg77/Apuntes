@@ -121,4 +121,3 @@ Para cambiar el valor agradable de un proceso que ya se está ejecutando, utilic
 renice [value] -p 'PID'
 ``` 
 
-Que pasa Luis
