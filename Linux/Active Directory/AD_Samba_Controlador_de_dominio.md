@@ -2,7 +2,13 @@
 
 En primer lugar, configuramos una red interna en VirtualBox con máquinas Ubuntu Desktop, Ubuntu Server y Windows 10. De esta manera, configuraremos las direcciones IP de los equipos conectados en la red LAN - LOCAL AREA NETWORK - para que tengan conectividad entre ellos.
 
+A continuación, dejo un enlace donde puede verse como crearse esta red interna de manera sencilla:
+
 <https://www.youtube.com/watch?v=XhDeZOIMw48&list=PLHjuPxrwcdsb8tf7MQIO7gYNNcJziMDrb&index=1>
+
+Y la red interna quedaría estructurada del siguiente modo:
+
+![Red_interna!] (https://github.com/davidseg77/Apuntes/blob/main/Linux/Active%20Directory/Red_Interna.jpg "Red_interna")
 
 ## 1. DOMAIN CONTROLLER EN UBUNTU SERVER + UNION WINDOWS 10
 
