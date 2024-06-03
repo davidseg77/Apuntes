@@ -8,7 +8,7 @@ A continuación, dejo un enlace donde puede verse como crearse esta red interna 
 
 Y la red interna quedaría estructurada del siguiente modo:
 
-![Red!] (https://github.com/davidseg77/Apuntes/blob/main/Linux/Active_Directory/Red.jpg "Red")
+![Red] (https://github.com/davidseg77/Apuntes/blob/main/Linux/Active_Directory/Red.jpg)
 
 ## 1. DOMAIN CONTROLLER EN UBUNTU SERVER + UNION WINDOWS 10
 
@@ -28,7 +28,7 @@ sudo hostnamectl set-hostname dc
 Modificar fichero hosts:
 
 ``` 
-sudo nano /etc/hosts
+sudo nano /etc/hos
 192.168.1.8 dc.clockwork.local dc
 ``` 
 
