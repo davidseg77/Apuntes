@@ -293,3 +293,216 @@ Eliminar un miembro de un grupo:
 samba-tool group removemembers <nombre_del_grupo> <nombre_del_usuario>
 ``` 
 
+## 2. INTEGRAR UBUNTU DESKTOP EN DOMINIO UBUNTU SERVER
+
+Cambiar hostname:
+
+``` 
+sudo hostnamectl set-hostname ud101
+hostname -f
+``` 
+
+Modificar fichero hosts:
+
+``` 
+sudo nano /etc/hosts
+192.168.1.8 clockwork.local clockwork
+192.168.1.8 dc.clockwork.local dc
+``` 
+
+Comprobamos conexión:
+
+``` 
+ping -c2 clockwork.local
+``` 
+
+Es importante y necesario que resuelva.
+
+Ahora, procedemos a instalar NTPDATE, que va a servirnos para sincronizar los relojes de nuestras máquinas.
+
+``` 
+sudo apt-get install ntpdate
+sudo nptdate -q clockwork.local
+sudo ntpdate clockwork.local
+``` 
+
+Instalar samba con sus paquetes y dependencias:
+
+``` 
+sudo apt install -y acl attr samba samba-dsdb-modules samba-vfs-modules smbclient winbind libpam-winbind libnss-winbind libpam-krb5 krb5-config krb5-user dnsutils chrony net-tools
+``` 
+
+Los nombres de dominio que vamos a colocar son:
+
+CLOCKWORK.LOCAL
+dc.clockwork.local
+dc.clockwork.local
+
+Comprobar autenticación en el servidor de Kerberos mediante el administrador de usuarios:
+
+``` 
+kinit administrator@CLOCKWORK.LOCAL
+klist
+``` 
+
+Movemos archivo smb.conf y creamos copia de seguridad:
+
+``` 
+mv /etc/samba/smb.conf /etc/samba/smb.conf.initial
+``` 
+
+Creamos archivo smb.conf vacío:
+
+``` 
+[global]
+        workgroup = CLOCKWORK
+        realm = CLOCKWORK.LOCAL
+        netbios name = ud101
+        security = ADS
+        dns forwarder = 192.168.1.8
+
+idmap config * : backend = tdb
+idmap config *:range = 50000-1000000
+
+    template homedir = /home/%D/%U
+    template shell = /bin/bash
+    winbind use default domain = true
+    winbind offline logon = false
+    winbind nss info = rfc2307
+    winbind enum users = yes
+    winbind enum groups = yes
+
+vfs objects = acl_xattr
+map acl inherit = Yes
+store dos attributes = Yes
+``` 
+
+Reiniciamos los daemons de samba:
+
+``` 
+sudo systemctl restart smbd nmbd
+``` 
+
+Detenemos los servicios innecesarios:
+
+``` 
+sudo systemctl stop samba-ad-dc
+``` 
+
+Habilitamos los servicios de Samba:
+
+``` 
+sudo systemctl enable smbd nmbd
+```
+
+### 2.1 Unir Ubuntu Desktop a SAMBA AD DC
+
+``` 
+sudo net ads join -U administrator
+```
+
+Comprobamos en el servidor:
+
+``` 
+sudo samba-tool computer list
+``` 
+
+Y ya nos aparecerá el equipo de Ubuntu Desktop en el listado.
+
+### 2.2 Configurar autenticación de cuentas AD
+
+Editamos el archivo de configuración del conmutador de servicio de nombres:
+
+``` 
+sudo nano /etc/nsswitch.conf
+```
+
+``` 
+passwd:     compat winbind
+group:      compat winbind
+shadow:     compat winbind
+gshadow:    files
+
+hosts:      files dns
+networks:   files
+
+protocols:  db files
+services:   db files
+ethers:     db files
+rpc:        db files
+
+netgroup:   nis
+``` 
+
+Reiniciamos servicio winbind:
+
+```
+sudo systemctl restart winbind
+```
+
+Listamos usuarios y grupos del dominio:
+
+``` 
+wbinfo -u
+wbinfo -g
+``` 
+
+Verificamos el módulo winbind nsswitch con el comando getent:
+
+``` 
+sudo getent passwd| grep administrator
+sudo getent group|grep 'domain admins'
+id administrator
+``` 
+
+Configuramos pam-auth-update para autenticarnos con cuentas de dominio y que se creen automáticamente los directorios:
+
+```
+sudo pam-auth-update
+``` 
+
+Y activamos el apartado **Create home directory on login**
+
+Editamos el archivo /etc/pam.d/common-account para que cree automáticamente los directorios:
+
+``` 
+nano /etc/pam.d/common-account
+``` 
+
+Añadimos al final del archivo:
+
+``` 
+session required    pam_mkhomedir.so    skel=/etc/skel/     umask=0022
+``` 
+
+y ahora podemos autenticarnos con la cuenta de administrator:
+
+```
+su administrator
+``` 
+
+Añadimos cuenta de dominio con privilegios root:
+
+``` 
+sudo usermod -aG sudo administrator
+``` 
+
+Si ahora cierro sesión en Ubuntu Desktop y me logueo por ejemplo con clockworker@clockwork.local, pongo la contraseña y me creará un directorio dentro del dominio.
+
+Y con esto ya tenemos implementado servidor Samba con AD y acceso integrado con Ubuntu Desktop.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
